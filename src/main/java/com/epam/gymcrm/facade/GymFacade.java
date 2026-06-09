@@ -1,0 +1,157 @@
+package com.epam.gymcrm.facade;
+
+import com.epam.gymcrm.entity.Trainee;
+import com.epam.gymcrm.entity.Trainer;
+import com.epam.gymcrm.entity.Training;
+import com.epam.gymcrm.service.TraineeService;
+import com.epam.gymcrm.service.TrainerService;
+import com.epam.gymcrm.service.TrainingService;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Component
+public class GymFacade {
+
+    private final TraineeService traineeService;
+    private final TrainerService trainerService;
+    private final TrainingService trainingService;
+
+    public GymFacade(TraineeService traineeService,
+                     TrainerService trainerService,
+                     TrainingService trainingService) {
+        this.traineeService = traineeService;
+        this.trainerService = trainerService;
+        this.trainingService = trainingService;
+    }
+
+    public Trainee createTrainee(Trainee trainee) {
+        return traineeService.create(trainee);
+    }
+
+    public Trainee updateTrainee(String username, String password, Trainee trainee) {
+        return traineeService.update(username, password, trainee);
+    }
+
+    public Trainer createTrainer(Trainer trainer) {
+        return trainerService.create(trainer);
+    }
+
+    public Trainer updateTrainer(String username, String password, Trainer trainer) {
+        return trainerService.update(username, password, trainer);
+    }
+
+    public Optional<Trainee> findTraineeByUsername(String authUsername,String authPassword,String targetUsername) {
+        return traineeService.findByUsername(authUsername, authPassword, targetUsername);
+    }
+
+    public Optional<Trainer> findTrainerByUsername(String authUsername,String authPassword,String targetUsername) {
+        return trainerService.findByUsername(authUsername, authPassword, targetUsername);
+    }
+
+    public boolean isTraineeCredentialsValid(String username, String password) {
+        return traineeService.isCredentialsValid(username, password);
+    }
+
+    public boolean isTrainerCredentialsValid(String username, String password) {
+        return trainerService.isCredentialsValid(username, password);
+    }
+
+    public void changeTrainerPassword(String username, String oldPassword, String newPassword) {
+        trainerService.changePassword(username, oldPassword, newPassword);
+    }
+
+    public void changeTraineePassword(String username, String oldPassword, String newPassword) {
+        traineeService.changePassword(username, oldPassword, newPassword);
+    }
+
+    public void activateTrainee(String username, String password) {
+        traineeService.activate(username, password);
+    }
+
+    public void deactivateTrainee(String username, String password) {
+        traineeService.deactivate(username, password);
+    }
+
+    public void activateTrainer(String username, String password) {
+        trainerService.activate(username, password);
+    }
+
+    public void deactivateTrainer(String username, String password) {
+        trainerService.deactivate(username, password);
+    }
+
+    public void deleteTraineeByUsername(String username, String password) {
+        traineeService.deleteByUsername(username, password);
+    }
+    public Training addTraining(
+            String trainerUsername,
+            String trainerPassword,
+            String traineeUsername,
+            String trainingName,
+            String trainingTypeName,
+            LocalDate trainingDate,
+            Integer trainingDuration
+    ) {
+        return trainingService.addTraining(
+                trainerUsername,
+                trainerPassword,
+                traineeUsername,
+                trainingName,
+                trainingTypeName,
+                trainingDate,
+                trainingDuration
+        );
+    }
+    public List<Training> getTraineeTrainings(
+            String traineeUsername,
+            String traineePassword,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String trainerUsername,
+            String trainingTypeName
+    ) {
+        return trainingService.getTraineeTrainings(
+                traineeUsername,
+                traineePassword,
+                fromDate,
+                toDate,
+                trainerUsername,
+                trainingTypeName
+        );
+    }
+
+    public List<Training> getTrainerTrainings(
+            String trainerUsername,
+            String trainerPassword,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String traineeUsername
+    ) {
+        return trainingService.getTrainerTrainings(
+                trainerUsername,
+                trainerPassword,
+                fromDate,
+                toDate,
+                traineeUsername
+        );
+    }
+
+    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername, String traineePassword){
+        return traineeService.getTrainersNotAssignedToTrainee(traineeUsername, traineePassword);
+    }
+
+    public Trainee updateTraineeTrainersList(
+            String traineeUsername,
+            String traineePassword,
+            List<String> trainerUsernames
+    ) {
+        return traineeService.updateTraineeTrainersList(
+                traineeUsername,
+                traineePassword,
+                trainerUsernames
+        );
+    }
+}
