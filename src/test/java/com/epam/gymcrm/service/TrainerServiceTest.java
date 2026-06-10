@@ -1,12 +1,12 @@
 package com.epam.gymcrm.service;
 
-import com.epam.gymcrm.dao.TrainerDao;
-import com.epam.gymcrm.dao.UserDao;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.exception.ValidationException;
+import com.epam.gymcrm.repository.TrainerRepository;
+import com.epam.gymcrm.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,21 +21,21 @@ import static org.mockito.Mockito.*;
 class TrainerServiceTest {
 
     private TrainerService trainerService;
-    private TrainerDao trainerDao;
-    private UserDao userDao;
+    private TrainerRepository trainerRepository;
+    private UserRepository userRepository;
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
 
     @BeforeEach
     void setUp() {
-        trainerDao = Mockito.mock(TrainerDao.class);
-        userDao = Mockito.mock(UserDao.class);
+        trainerRepository = Mockito.mock(TrainerRepository.class);
+        userRepository = Mockito.mock(UserRepository.class);
         usernameGenerator = Mockito.mock(UsernameGenerator.class);
         passwordGenerator = Mockito.mock(PasswordGenerator.class);
 
         trainerService = new TrainerService();
-        trainerService.setTrainerDao(trainerDao);
-        trainerService.setUserDao(userDao);
+        trainerService.setTrainerRepository(trainerRepository);
+        trainerService.setUserRepository(userRepository);
         trainerService.setUsernameGenerator(usernameGenerator);
         trainerService.setPasswordGenerator(passwordGenerator);
     }
@@ -46,11 +46,11 @@ class TrainerServiceTest {
         User user = new User("Mike", "Brown", null, null, false);
         Trainer trainer = new Trainer(user, fitness);
 
-        when(userDao.findAllUsernames()).thenReturn(List.of());
+        when(userRepository.findAllUsernames()).thenReturn(List.of());
         when(usernameGenerator.generateUsername("Mike", "Brown", List.of()))
                 .thenReturn("Mike.Brown");
         when(passwordGenerator.generatePassword()).thenReturn("pass123456");
-        when(trainerDao.save(trainer)).thenAnswer(invocation -> {
+        when(trainerRepository.save(trainer)).thenAnswer(invocation -> {
             trainer.setId(1L);
             trainer.getUser().setId(10L);
             return trainer;
@@ -63,7 +63,7 @@ class TrainerServiceTest {
         assertEquals("pass123456", createdTrainer.getUser().getPassword());
         assertTrue(createdTrainer.getUser().isActive());
 
-        verify(trainerDao).save(trainer);
+        verify(trainerRepository).save(trainer);
     }
 
     @Test
@@ -73,7 +73,7 @@ class TrainerServiceTest {
 
         assertThrows(ValidationException.class, () -> trainerService.create(trainer));
 
-        verify(trainerDao, never()).save(any());
+        verify(trainerRepository, never()).save(any());
     }
 
     @Test
@@ -88,13 +88,13 @@ class TrainerServiceTest {
         Trainer updatedTrainer = new Trainer(updatedUser, yoga);
         updatedTrainer.setId(1L);
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
-        when(trainerDao.update(updatedTrainer)).thenReturn(updatedTrainer);
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
+        when(trainerRepository.save(updatedTrainer)).thenReturn(updatedTrainer);
 
         Trainer result = trainerService.update("Mike.Brown", "oldpass", updatedTrainer);
 
         assertEquals(yoga, result.getSpecialization());
-        verify(trainerDao).update(updatedTrainer);
+        verify(trainerRepository).save(updatedTrainer);
     }
 
     @Test
@@ -107,12 +107,12 @@ class TrainerServiceTest {
         User updatedUser = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
         Trainer updatedTrainer = new Trainer(updatedUser, fitness);
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
 
         assertThrows(AuthenticationException.class,
                 () -> trainerService.update("Mike.Brown", "wrongpass", updatedTrainer));
 
-        verify(trainerDao, never()).update(any());
+        verify(trainerRepository, never()).save(any());
     }
 
     @Test
@@ -121,13 +121,13 @@ class TrainerServiceTest {
         User user = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
         Trainer trainer = new Trainer(user, fitness);
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(trainerDao.update(trainer)).thenReturn(trainer);
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainerRepository.save(trainer)).thenReturn(trainer);
 
         trainerService.changePassword("Mike.Brown", "oldpass", "newpass");
 
         assertEquals("newpass", trainer.getUser().getPassword());
-        verify(trainerDao).update(trainer);
+        verify(trainerRepository).save(trainer);
     }
 
     @Test
@@ -136,12 +136,12 @@ class TrainerServiceTest {
         User user = new User("Mike", "Brown", "Mike.Brown", "password", true);
         Trainer trainer = new Trainer(user, fitness);
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(trainerDao.update(trainer)).thenReturn(trainer);
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainerRepository.save(trainer)).thenReturn(trainer);
 
         trainerService.deactivate("Mike.Brown", "password");
 
         assertFalse(trainer.getUser().isActive());
-        verify(trainerDao).update(trainer);
+        verify(trainerRepository).save(trainer);
     }
 }

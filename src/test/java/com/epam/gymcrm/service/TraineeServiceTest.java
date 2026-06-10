@@ -1,14 +1,14 @@
 package com.epam.gymcrm.service;
 
-import com.epam.gymcrm.dao.TraineeDao;
-import com.epam.gymcrm.dao.TrainerDao;
-import com.epam.gymcrm.dao.UserDao;
 import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.exception.ValidationException;
+import com.epam.gymcrm.repository.TraineeRepository;
+import com.epam.gymcrm.repository.TrainerRepository;
+import com.epam.gymcrm.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -24,24 +24,24 @@ import static org.mockito.Mockito.*;
 class TraineeServiceTest {
 
     private TraineeService traineeService;
-    private TraineeDao traineeDao;
-    private TrainerDao trainerDao;
-    private UserDao userDao;
+    private TraineeRepository traineeRepository;
+    private TrainerRepository trainerRepository;
+    private UserRepository userRepository;
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
 
     @BeforeEach
     void setUp() {
-        traineeDao = Mockito.mock(TraineeDao.class);
-        trainerDao = Mockito.mock(TrainerDao.class);
-        userDao = Mockito.mock(UserDao.class);
+        traineeRepository = Mockito.mock(TraineeRepository.class);
+        trainerRepository = Mockito.mock(TrainerRepository.class);
+        userRepository = Mockito.mock(UserRepository.class);
         usernameGenerator = Mockito.mock(UsernameGenerator.class);
         passwordGenerator = Mockito.mock(PasswordGenerator.class);
 
         traineeService = new TraineeService();
-        traineeService.setTraineeDao(traineeDao);
-        traineeService.setTrainerDao(trainerDao);
-        traineeService.setUserDao(userDao);
+        traineeService.setTraineeRepository(traineeRepository);
+        traineeService.setTrainerRepository(trainerRepository);
+        traineeService.setUserRepository(userRepository);
         traineeService.setUsernameGenerator(usernameGenerator);
         traineeService.setPasswordGenerator(passwordGenerator);
     }
@@ -51,11 +51,11 @@ class TraineeServiceTest {
         User user = new User("John", "Smith", null, null, false);
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
-        when(userDao.findAllUsernames()).thenReturn(List.of());
+        when(userRepository.findAllUsernames()).thenReturn(List.of());
         when(usernameGenerator.generateUsername("John", "Smith", List.of()))
                 .thenReturn("John.Smith");
         when(passwordGenerator.generatePassword()).thenReturn("pass123456");
-        when(traineeDao.save(trainee)).thenAnswer(invocation -> {
+        when(traineeRepository.save(trainee)).thenAnswer(invocation -> {
             trainee.setId(1L);
             trainee.getUser().setId(10L);
             return trainee;
@@ -68,7 +68,7 @@ class TraineeServiceTest {
         assertEquals("pass123456", createdTrainee.getUser().getPassword());
         assertTrue(createdTrainee.getUser().isActive());
 
-        verify(traineeDao).save(trainee);
+        verify(traineeRepository).save(trainee);
     }
 
     @Test
@@ -78,7 +78,7 @@ class TraineeServiceTest {
 
         assertThrows(ValidationException.class, () -> traineeService.create(trainee));
 
-        verify(traineeDao, never()).save(any());
+        verify(traineeRepository, never()).save(any());
     }
 
     @Test
@@ -90,13 +90,13 @@ class TraineeServiceTest {
         Trainee updatedTrainee = new Trainee(updatedUser, LocalDate.of(2000, 1, 1), "Batumi");
         updatedTrainee.setId(1L);
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
-        when(traineeDao.update(updatedTrainee)).thenReturn(updatedTrainee);
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
+        when(traineeRepository.save(updatedTrainee)).thenReturn(updatedTrainee);
 
         Trainee result = traineeService.update("John.Smith", "oldpass", updatedTrainee);
 
         assertEquals("Batumi", result.getAddress());
-        verify(traineeDao).update(updatedTrainee);
+        verify(traineeRepository).save(updatedTrainee);
     }
 
     @Test
@@ -107,12 +107,12 @@ class TraineeServiceTest {
         User updatedUser = new User("John", "Smith", "John.Smith", "oldpass", true);
         Trainee updatedTrainee = new Trainee(updatedUser, LocalDate.of(2000, 1, 1), "Batumi");
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
 
         assertThrows(AuthenticationException.class,
                 () -> traineeService.update("John.Smith", "wrongpass", updatedTrainee));
 
-        verify(traineeDao, never()).update(any());
+        verify(traineeRepository, never()).save(any());
     }
 
     @Test
@@ -120,13 +120,13 @@ class TraineeServiceTest {
         User user = new User("John", "Smith", "John.Smith", "oldpass", true);
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(traineeDao.update(trainee)).thenReturn(trainee);
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(traineeRepository.save(trainee)).thenReturn(trainee);
 
         traineeService.changePassword("John.Smith", "oldpass", "newpass");
 
         assertEquals("newpass", trainee.getUser().getPassword());
-        verify(traineeDao).update(trainee);
+        verify(traineeRepository).save(trainee);
     }
 
     @Test
@@ -134,13 +134,13 @@ class TraineeServiceTest {
         User user = new User("John", "Smith", "John.Smith", "password", true);
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(traineeDao.update(trainee)).thenReturn(trainee);
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(traineeRepository.save(trainee)).thenReturn(trainee);
 
         traineeService.deactivate("John.Smith", "password");
 
         assertFalse(trainee.getUser().isActive());
-        verify(traineeDao).update(trainee);
+        verify(traineeRepository).save(trainee);
     }
 
     @Test
@@ -159,10 +159,10 @@ class TraineeServiceTest {
                 fitness
         );
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(firstTrainer));
-        when(trainerDao.findByUsername("Anna.White")).thenReturn(Optional.of(secondTrainer));
-        when(traineeDao.update(trainee)).thenReturn(trainee);
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(firstTrainer));
+        when(trainerRepository.findByUserUsername("Anna.White")).thenReturn(Optional.of(secondTrainer));
+        when(traineeRepository.save(trainee)).thenReturn(trainee);
 
         Trainee result = traineeService.updateTraineeTrainersList(
                 "John.Smith",
@@ -173,6 +173,6 @@ class TraineeServiceTest {
         assertEquals(2, result.getTrainers().size());
         assertTrue(result.getTrainers().contains(firstTrainer));
         assertTrue(result.getTrainers().contains(secondTrainer));
-        verify(traineeDao).update(trainee);
+        verify(traineeRepository).save(trainee);
     }
 }

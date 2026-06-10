@@ -1,9 +1,5 @@
 package com.epam.gymcrm.service;
 
-import com.epam.gymcrm.dao.TraineeDao;
-import com.epam.gymcrm.dao.TrainerDao;
-import com.epam.gymcrm.dao.TrainingDao;
-import com.epam.gymcrm.dao.TrainingTypeDao;
 import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.Training;
@@ -11,6 +7,10 @@ import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.exception.ValidationException;
+import com.epam.gymcrm.repository.TraineeRepository;
+import com.epam.gymcrm.repository.TrainerRepository;
+import com.epam.gymcrm.repository.TrainingRepository;
+import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -26,23 +26,23 @@ import static org.mockito.Mockito.*;
 class TrainingServiceTest {
 
     private TrainingService trainingService;
-    private TrainingDao trainingDao;
-    private TraineeDao traineeDao;
-    private TrainerDao trainerDao;
-    private TrainingTypeDao trainingTypeDao;
+    private TrainingRepository trainingRepository;
+    private TraineeRepository traineeRepository;
+    private TrainerRepository trainerRepository;
+    private TrainingTypeRepository trainingTypeRepository;
 
     @BeforeEach
     void setUp() {
-        trainingDao = Mockito.mock(TrainingDao.class);
-        traineeDao = Mockito.mock(TraineeDao.class);
-        trainerDao = Mockito.mock(TrainerDao.class);
-        trainingTypeDao = Mockito.mock(TrainingTypeDao.class);
+        trainingRepository = Mockito.mock(TrainingRepository.class);
+        traineeRepository = Mockito.mock(TraineeRepository.class);
+        trainerRepository = Mockito.mock(TrainerRepository.class);
+        trainingTypeRepository = Mockito.mock(TrainingTypeRepository.class);
 
         trainingService = new TrainingService();
-        trainingService.setTrainingDao(trainingDao);
-        trainingService.setTraineeDao(traineeDao);
-        trainingService.setTrainerDao(trainerDao);
-        trainingService.setTrainingTypeDao(trainingTypeDao);
+        trainingService.setTrainingRepository(trainingRepository);
+        trainingService.setTraineeRepository(traineeRepository);
+        trainingService.setTrainerRepository(trainerRepository);
+        trainingService.setTrainingTypeRepository(trainingTypeRepository);
     }
 
     @Test
@@ -60,10 +60,10 @@ class TrainingServiceTest {
                 fitness
         );
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(trainingTypeDao.findByName("Fitness")).thenReturn(Optional.of(fitness));
-        when(trainingDao.save(any(Training.class))).thenAnswer(invocation -> {
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(trainingTypeRepository.findByName("Fitness")).thenReturn(Optional.of(fitness));
+        when(trainingRepository.save(any(Training.class))).thenAnswer(invocation -> {
             Training training = invocation.getArgument(0);
             training.setId(1L);
             return training;
@@ -87,7 +87,7 @@ class TrainingServiceTest {
         assertSame(trainee, createdTraining.getTrainee());
         assertSame(fitness, createdTraining.getTrainingType());
 
-        verify(trainingDao).save(any(Training.class));
+        verify(trainingRepository).save(any(Training.class));
     }
 
     @Test
@@ -99,7 +99,7 @@ class TrainingServiceTest {
                 fitness
         );
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
 
         assertThrows(AuthenticationException.class,
                 () -> trainingService.addTraining(
@@ -112,7 +112,7 @@ class TrainingServiceTest {
                         60
                 ));
 
-        verify(trainingDao, never()).save(any());
+        verify(trainingRepository, never()).save(any());
     }
 
     @Test
@@ -128,7 +128,7 @@ class TrainingServiceTest {
                         0
                 ));
 
-        verify(trainingDao, never()).save(any());
+        verify(trainingRepository, never()).save(any());
     }
 
     @Test
@@ -144,8 +144,8 @@ class TrainingServiceTest {
 
         List<Training> trainings = List.of(new Training());
 
-        when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(trainingDao.findTraineeTrainings(
+        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(trainingRepository.findTraineeTrainings(
                 "John.Smith",
                 fromDate,
                 toDate,
@@ -171,6 +171,7 @@ class TrainingServiceTest {
         LocalDate toDate = LocalDate.of(2026, 12, 31);
 
         TrainingType fitness = new TrainingType("Fitness");
+
         Trainer trainer = new Trainer(
                 new User("Mike", "Brown", "Mike.Brown", "trainerPass", true),
                 fitness
@@ -178,8 +179,8 @@ class TrainingServiceTest {
 
         List<Training> trainings = List.of(new Training());
 
-        when(trainerDao.findByUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(trainingDao.findTrainerTrainings(
+        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainingRepository.findTrainerTrainings(
                 "Mike.Brown",
                 fromDate,
                 toDate,

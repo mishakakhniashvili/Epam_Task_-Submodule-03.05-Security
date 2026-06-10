@@ -8,6 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -22,6 +23,7 @@ import java.util.Properties;
 @ComponentScan(basePackages = "com.epam.gymcrm")
 @PropertySource("classpath:application.properties")
 @EnableTransactionManagement
+@EnableJpaRepositories(basePackages = "com.epam.gymcrm.repository")
 public class AppConfig {
 
     @Value("${db.driver}")
