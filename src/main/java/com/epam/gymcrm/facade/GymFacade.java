@@ -172,4 +172,15 @@ public class GymFacade {
                 username, password, firstName, lastName, dateOfBirth, address, active
         );
     }
+
+    public Trainer updateProfile(
+            String username,
+            String password,
+            String firstName,
+            String lastName,
+            Boolean active){
+        return trainerService.updateProfile(
+                username, password, firstName, lastName, active
+        );
+    }
 }

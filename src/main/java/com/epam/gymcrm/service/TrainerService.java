@@ -1,5 +1,6 @@
 package com.epam.gymcrm.service;
 
+import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -204,5 +206,33 @@ public class TrainerService {
         );
 
         return create(trainer);
+    }
+
+    @Transactional
+    public Trainer updateProfile(
+            String username,
+            String password,
+            String firstName,
+            String lastName,
+            Boolean active)
+    {
+        validateRequiredString(username, "username");
+        validateRequiredString(password, "password");
+        validateRequiredString(firstName, "firstName");
+        validateRequiredString(lastName, "lastName");
+        validateCredentials(username, password);
+        if (active == null) {
+            throw new ValidationException("active cannot be null");
+        }
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(
+                () -> new EntityNotFoundException("trainer", username)
+        );
+
+
+        trainer.getUser().setFirstName(firstName);
+        trainer.getUser().setLastName(lastName);
+        trainer.getUser().setActive(active);
+
+        return trainerRepository.save(trainer);
     }
 }

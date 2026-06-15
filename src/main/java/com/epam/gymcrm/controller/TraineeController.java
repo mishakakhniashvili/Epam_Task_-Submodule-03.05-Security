@@ -100,6 +100,8 @@ public class TraineeController {
         );
         TraineeProfileResponse response = traineeMapper.toProfileResponse(trainee);
 
+        LOGGER.info("Trainer profile successfully updated for username={}", request.getUsername());
+
         return  ResponseEntity.ok(response);
     }
 

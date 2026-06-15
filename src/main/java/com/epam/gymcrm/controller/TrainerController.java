@@ -1,8 +1,6 @@
 package com.epam.gymcrm.controller;
 
-import com.epam.gymcrm.dto.RegistrationResponse;
-import com.epam.gymcrm.dto.TrainerProfileResponse;
-import com.epam.gymcrm.dto.TrainerRegistrationRequest;
+import com.epam.gymcrm.dto.*;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.exception.EntityNotFoundException;
 import com.epam.gymcrm.facade.GymFacade;
@@ -71,4 +69,26 @@ public class TrainerController {
 
         return ResponseEntity.ok(response);
     }
+
+
+    @PutMapping("/profile")
+    public ResponseEntity<TrainerProfileResponse> updateTrainerProfile(
+            @RequestParam String password,
+            @Valid @RequestBody TrainerUpdateRequest request
+    ){
+        LOGGER.info("Trainer profile update request received for username={}", request.getUsername());
+        Trainer trainer = gymFacade.updateProfile(
+                request.getUsername(),
+                password,
+                request.getFirstName(),
+                request.getLastName(),
+                request.getActive()
+        );
+        TrainerProfileResponse response = trainerMapper.toProfileResponse(trainer);
+
+        LOGGER.info("Trainer profile successfully updated for username={}", request.getUsername());
+
+        return  ResponseEntity.ok(response);
+    }
+
 }
