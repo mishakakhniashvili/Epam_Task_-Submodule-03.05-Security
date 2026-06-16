@@ -5,14 +5,16 @@ import com.epam.gymcrm.dto.TrainingTypeResponse;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
-import com.epam.gymcrm.repository.TraineeRepository;
-import com.epam.gymcrm.repository.TrainerRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import java.util.List;
 
+@Api(tags = "Trainings")
 @RestController
 @RequestMapping("/api")
 public class TrainingController {
@@ -24,7 +26,13 @@ public class TrainingController {
         this.gymFacade = gymFacade;
 
     }
-
+    @ApiOperation("Add new training")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Training added successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 401, message = "Invalid trainer credentials"),
+            @ApiResponse(code = 404, message = "Trainer or trainee not found")
+    })
     @PostMapping("/trainings")
     public ResponseEntity<Void> addTraining(
             @RequestParam String password,
@@ -41,15 +49,16 @@ public class TrainingController {
         return ResponseEntity.ok().build();
     }
 
+    @ApiOperation("Get training types")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Training types returned successfully"),
+            @ApiResponse(code = 401, message = "Invalid credentials")
+    })
     @GetMapping("/training-types")
     public ResponseEntity<List<TrainingTypeResponse>> getTrainingTypes(
             @RequestParam String username,
             @RequestParam String password
     ){
-        if (!gymFacade.isTraineeCredentialsValid(username, password)
-                && !gymFacade.isTrainerCredentialsValid(username, password)) {
-            throw new AuthenticationException("Authentication Failed");
-        }
 
         boolean validTrainee = gymFacade.isTraineeCredentialsValid(username, password);
         boolean validTrainer = gymFacade.isTrainerCredentialsValid(username, password);

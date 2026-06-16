@@ -18,10 +18,14 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import java.time.LocalDate;
 import java.util.List;
 
+@Api(tags = "Trainers")
 @RestController
 @RequestMapping("/api/trainers")
 public class TrainerController {
@@ -41,6 +45,12 @@ public class TrainerController {
     }
 
 
+    @ApiOperation("Register new trainer")
+    @ApiResponses({
+            @ApiResponse(code = 201, message = "Trainer registered successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "Training type not found")
+    })
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> registerTrainer(
             @Valid @RequestBody TrainerRegistrationRequest request
@@ -66,6 +76,12 @@ public class TrainerController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @ApiOperation("Get trainer profile")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Trainer profile returned successfully"),
+            @ApiResponse(code = 401, message = "Invalid credentials"),
+            @ApiResponse(code = 404, message = "Trainer not found")
+    })
     @GetMapping("/profile")
     public ResponseEntity<TrainerProfileResponse> getTrainerProfile(
             @RequestParam String username,
@@ -83,7 +99,13 @@ public class TrainerController {
         return ResponseEntity.ok(response);
     }
 
-
+    @ApiOperation("Update trainer profile")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Trainer profile updated successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 401, message = "Invalid credentials"),
+            @ApiResponse(code = 404, message = "Trainer not found")
+    })
     @PutMapping("/profile")
     public ResponseEntity<TrainerProfileResponse> updateTrainerProfile(
             @RequestParam String password,
@@ -105,6 +127,13 @@ public class TrainerController {
     }
 
 
+    @ApiOperation("Activate or deactivate trainer")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Trainer status updated successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 401, message = "Invalid credentials"),
+            @ApiResponse(code = 409, message = "Trainer already has requested status")
+    })
     @PatchMapping("/status")
     public ResponseEntity<Void> updateTrainerStatus(
             @RequestParam String password,
@@ -124,6 +153,13 @@ public class TrainerController {
         return ResponseEntity.ok().build();
     }
 
+    @ApiOperation("Get trainer trainings list")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Trainer trainings returned successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 401, message = "Invalid credentials"),
+            @ApiResponse(code = 404, message = "Trainer not found")
+    })
     @GetMapping("/trainings")
     public ResponseEntity<List<TrainerTrainingResponse>> getTrainerTrainings(
             @RequestParam String username,

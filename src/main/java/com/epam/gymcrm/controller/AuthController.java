@@ -8,7 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
+@Api(tags = "Authentication")
 @RestController
 @RequestMapping("/api")
 public class AuthController {
@@ -20,6 +25,11 @@ public class AuthController {
         this.gymFacade = gymFacade;
     }
 
+    @ApiOperation("Login user")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Login successful"),
+            @ApiResponse(code = 401, message = "Invalid credentials")
+    })
     @GetMapping("/login")
     public ResponseEntity<Void> login(
             @RequestParam String username,
@@ -37,6 +47,12 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @ApiOperation("Change user password")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Password changed successfully"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 401, message = "Invalid credentials")
+    })
     @PutMapping("/password")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request){
         LOGGER.info("changePassword request received for username={}", request.getUsername());
