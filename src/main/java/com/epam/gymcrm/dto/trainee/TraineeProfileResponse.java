@@ -10,6 +10,8 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class TraineeProfileResponse {
+    String username;
+
     String firstName;
 
     String lastName ;

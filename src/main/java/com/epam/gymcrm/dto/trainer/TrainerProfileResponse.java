@@ -9,6 +9,8 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class TrainerProfileResponse {
+    private String username;
+
     private String firstName;
 
     private String lastName;

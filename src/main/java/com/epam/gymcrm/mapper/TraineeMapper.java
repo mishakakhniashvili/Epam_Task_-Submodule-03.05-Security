@@ -23,6 +23,7 @@ public class TraineeMapper {
                 .toList();
 
         return new TraineeProfileResponse(
+                user.getUsername(),
                 user.getFirstName(),
                 user.getLastName(),
                 trainee.getDateOfBirth(),

@@ -80,6 +80,7 @@ class TraineeControllerTest {
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
         TraineeProfileResponse profileResponse = new TraineeProfileResponse(
+                "John1",
                 "John",
                 "Smith",
                 LocalDate.of(2000, 1, 1),
@@ -113,6 +114,7 @@ class TraineeControllerTest {
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Batumi");
 
         TraineeProfileResponse profileResponse = new TraineeProfileResponse(
+                "John1",
                 "John",
                 "Updated",
                 LocalDate.of(2000, 1, 1),

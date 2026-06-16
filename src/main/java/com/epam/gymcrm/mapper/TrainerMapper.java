@@ -24,6 +24,7 @@ public class TrainerMapper {
                 .toList();
 
         return new TrainerProfileResponse(
+                user.getUsername(),
                 user.getFirstName(),
                 user.getLastName(),
                 trainer.getSpecialization().getTrainingTypeName(),

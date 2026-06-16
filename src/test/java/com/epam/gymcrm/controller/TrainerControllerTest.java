@@ -73,6 +73,7 @@ class TrainerControllerTest {
         Trainer trainer = new Trainer(user, fitness);
 
         TrainerProfileResponse profileResponse = new TrainerProfileResponse(
+                "Mike1",
                 "Mike",
                 "Brown",
                 "Fitness",
@@ -104,6 +105,7 @@ class TrainerControllerTest {
         Trainer trainer = new Trainer(user, fitness);
 
         TrainerProfileResponse profileResponse = new TrainerProfileResponse(
+                "Mike1",
                 "Mike",
                 "Updated",
                 "Fitness",
