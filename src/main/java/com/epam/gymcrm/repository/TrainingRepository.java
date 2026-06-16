@@ -1,6 +1,7 @@
 package com.epam.gymcrm.repository;
 
 import com.epam.gymcrm.entity.Training;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +20,13 @@ public interface TrainingRepository extends JpaRepository<Training, Long> {
               and (:trainerUsername is null or training.trainer.user.username = :trainerUsername)
               and (:trainingTypeName is null or training.trainingType.trainingTypeName = :trainingTypeName)
             """)
+    @EntityGraph(attributePaths = {
+            "trainer",
+            "trainer.user",
+            "trainee",
+            "trainee.user",
+            "trainingType"
+    })
     List<Training> findTraineeTrainings(
             @Param("traineeUsername") String traineeUsername,
             @Param("fromDate") LocalDate fromDate,
@@ -35,6 +43,13 @@ public interface TrainingRepository extends JpaRepository<Training, Long> {
               and (:toDate is null or training.trainingDate <= :toDate)
               and (:traineeUsername is null or training.trainee.user.username = :traineeUsername)
             """)
+    @EntityGraph(attributePaths = {
+            "trainer",
+            "trainer.user",
+            "trainee",
+            "trainee.user",
+            "trainingType"
+    })
     List<Training> findTrainerTrainings(
             @Param("trainerUsername") String trainerUsername,
             @Param("fromDate") LocalDate fromDate,
