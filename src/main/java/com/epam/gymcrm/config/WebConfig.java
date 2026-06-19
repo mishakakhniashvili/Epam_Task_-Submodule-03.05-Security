@@ -10,10 +10,6 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableWebMvc
-@ComponentScan(basePackages = "com.epam.gymcrm")
-@PropertySource("classpath:application.properties")
-@EnableTransactionManagement
 public class WebConfig implements WebMvcConfigurer {
 
     private final TransactionIdInterceptor transactionIdInterceptor;
