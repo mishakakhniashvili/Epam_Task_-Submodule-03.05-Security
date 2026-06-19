@@ -1,14 +1,12 @@
 package com.epam.gymcrm;
 
-import com.epam.gymcrm.config.AppConfig;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-
+@SpringBootApplication
 public class GymCrmApplication {
 
     public static void main(String[] args) {
-        AnnotationConfigApplicationContext context =
-                new AnnotationConfigApplicationContext(AppConfig.class);
-        context.close();
+        SpringApplication.run(GymCrmApplication.class, args);
     }
 }
