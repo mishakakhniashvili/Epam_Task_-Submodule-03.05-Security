@@ -3,6 +3,7 @@ package com.epam.gymcrm.controller;
 import com.epam.gymcrm.dto.ChangePasswordRequest;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,9 +24,12 @@ class AuthControllerTest {
 
     private AuthController authController;
 
+    @Mock
+    private GymCrmMetrics gymCrmMetrics;
+
     @BeforeEach
     void setUp() {
-        authController = new AuthController(gymFacade);
+        authController = new AuthController(gymFacade,gymCrmMetrics);
     }
 
     @Test
@@ -37,6 +41,8 @@ class AuthControllerTest {
 
         assertEquals(200, response.getStatusCode().value());
         verify(gymFacade).isTraineeCredentialsValid("John.Smith", "pass");
+        verify(gymCrmMetrics).incrementLoginSuccess();
+        verify(gymCrmMetrics, never()).incrementLoginFailure();
     }
 
     @Test
@@ -50,6 +56,8 @@ class AuthControllerTest {
 
         assertEquals(200, response.getStatusCode().value());
         verify(gymFacade).isTrainerCredentialsValid("Mike.Brown", "pass");
+        verify(gymCrmMetrics).incrementLoginSuccess();
+        verify(gymCrmMetrics, never()).incrementLoginFailure();
     }
 
     @Test
@@ -63,6 +71,8 @@ class AuthControllerTest {
                 AuthenticationException.class,
                 () -> authController.login("bad", "bad")
         );
+        verify(gymCrmMetrics).incrementLoginFailure();
+        verify(gymCrmMetrics, never()).incrementLoginSuccess();
     }
 
     @Test
