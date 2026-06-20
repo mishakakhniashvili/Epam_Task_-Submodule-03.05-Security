@@ -11,6 +11,7 @@ import com.epam.gymcrm.exception.EntityNotFoundException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +39,14 @@ public class TrainerController {
 
     private final TrainingMapper trainingMapper;
 
-    public TrainerController(GymFacade gymFacade,  TrainerMapper trainerMapper,   TrainingMapper trainingMapper) {
+    private final GymCrmMetrics gymCrmMetrics;
+
+    public TrainerController(GymFacade gymFacade,  TrainerMapper trainerMapper,   TrainingMapper trainingMapper,  GymCrmMetrics gymCrmMetrics) {
         this.gymFacade = gymFacade;
         this.trainerMapper = trainerMapper;
         this.trainingMapper = trainingMapper;
+        this.gymCrmMetrics = gymCrmMetrics;
+
     }
 
 
@@ -65,6 +70,8 @@ public class TrainerController {
                 request.getLastName(),
                 request.getSpecialization()
         );
+
+        gymCrmMetrics.incrementTrainerRegistrations();
 
         RegistrationResponse response = new RegistrationResponse(
                 createdTrainer.getUser().getUsername(),
