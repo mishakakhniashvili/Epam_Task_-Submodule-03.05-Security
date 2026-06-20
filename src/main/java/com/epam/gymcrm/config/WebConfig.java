@@ -28,7 +28,5 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/swagger-ui/**")
                 .addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/5.17.14/");
 
-        registry.addResourceHandler("/openapi.yaml")
-                .addResourceLocations("/");
     }
 }

@@ -5,7 +5,7 @@ info:
   description: REST API for Gym CRM system
 
 servers:
-  - url: /gym-crm
+  - url: /
 
 paths:
   /api/trainees/register:
