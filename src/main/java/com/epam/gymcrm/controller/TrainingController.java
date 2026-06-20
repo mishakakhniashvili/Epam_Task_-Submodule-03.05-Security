@@ -5,6 +5,7 @@ import com.epam.gymcrm.dto.TrainingTypeResponse;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,9 +22,11 @@ public class TrainingController {
 
     private final GymFacade gymFacade;
 
+    private GymCrmMetrics gymCrmMetrics;
 
-    public TrainingController(GymFacade gymFacade) {
+    public TrainingController(GymFacade gymFacade,  GymCrmMetrics gymCrmMetrics) {
         this.gymFacade = gymFacade;
+        this.gymCrmMetrics = gymCrmMetrics;
 
     }
     @ApiOperation("Add new training")
@@ -46,6 +49,7 @@ public class TrainingController {
                 request.getTrainingDate(),
                 request.getTrainingDuration()
         );
+        gymCrmMetrics.incrementTrainingsCreated();
         return ResponseEntity.ok().build();
     }
 
