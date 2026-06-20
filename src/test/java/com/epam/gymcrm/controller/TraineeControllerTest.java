@@ -9,6 +9,7 @@ import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.mapper.TraineeMapper;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +41,9 @@ class TraineeControllerTest {
     @Mock
     private TrainingMapper trainingMapper;
 
+    @Mock
+    private GymCrmMetrics gymCrmMetrics;
+
     private TraineeController traineeController;
 
     @BeforeEach
@@ -48,7 +52,8 @@ class TraineeControllerTest {
                 gymFacade,
                 traineeMapper,
                 trainerMapper,
-                trainingMapper
+                trainingMapper,
+                gymCrmMetrics
         );
     }
 
@@ -72,6 +77,7 @@ class TraineeControllerTest {
         assertEquals("John.Smith", response.getBody().getUsername());
         assertEquals("pass123", response.getBody().getPassword());
         verify(gymFacade).createTrainee(any(Trainee.class));
+        verify(gymCrmMetrics).incrementTraineeRegistrations();
     }
 
     @Test

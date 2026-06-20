@@ -10,10 +10,6 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableWebMvc
-@ComponentScan(basePackages = "com.epam.gymcrm")
-@PropertySource("classpath:application.properties")
-@EnableTransactionManagement
 public class WebConfig implements WebMvcConfigurer {
 
     private final TransactionIdInterceptor transactionIdInterceptor;
@@ -32,7 +28,5 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/swagger-ui/**")
                 .addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/5.17.14/");
 
-        registry.addResourceHandler("/openapi.yaml")
-                .addResourceLocations("/");
     }
 }

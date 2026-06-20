@@ -13,6 +13,7 @@ import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.mapper.TraineeMapper;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +43,15 @@ public class TraineeController {
 
     private final TrainingMapper trainingMapper;
 
-    public TraineeController(GymFacade gymFacade,  TraineeMapper traineeMapper,  TrainerMapper trainerMapper,   TrainingMapper trainingMapper) {
+    private final GymCrmMetrics gymCrmMetrics;
+
+    public TraineeController(GymFacade gymFacade,  TraineeMapper traineeMapper,  TrainerMapper trainerMapper,   TrainingMapper trainingMapper,  GymCrmMetrics gymCrmMetrics) {
         this.gymFacade = gymFacade;
         this.traineeMapper = traineeMapper;
         this.trainerMapper = trainerMapper;
         this.trainingMapper = trainingMapper;
+        this.gymCrmMetrics = gymCrmMetrics;
+
     }
 
     @ApiOperation("Register new trainee")
@@ -77,6 +82,8 @@ public class TraineeController {
         );
 
         Trainee createdTrainee = gymFacade.createTrainee(trainee);
+
+        gymCrmMetrics.incrementTraineeRegistrations();
 
         RegistrationResponse response = new RegistrationResponse(
                 createdTrainee.getUser().getUsername(),

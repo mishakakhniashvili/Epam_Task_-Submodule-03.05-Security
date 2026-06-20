@@ -5,6 +5,7 @@ import com.epam.gymcrm.dto.TrainingTypeResponse;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,11 +26,14 @@ class TrainingControllerTest {
     @Mock
     private GymFacade gymFacade;
 
+    @Mock
+    private GymCrmMetrics gymCrmMetrics;
+
     private TrainingController trainingController;
 
     @BeforeEach
     void setUp() {
-        trainingController = new TrainingController(gymFacade);
+        trainingController = new TrainingController(gymFacade, gymCrmMetrics);
     }
 
     @Test
@@ -54,6 +58,7 @@ class TrainingControllerTest {
                 LocalDate.of(2026, 5, 10),
                 60
         );
+        verify(gymCrmMetrics).incrementTrainingsCreated();
     }
 
     @Test

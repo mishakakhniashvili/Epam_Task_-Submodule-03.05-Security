@@ -3,6 +3,7 @@ package com.epam.gymcrm.controller;
 import com.epam.gymcrm.dto.ChangePasswordRequest;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
+import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,13 @@ import io.swagger.annotations.ApiResponses;
 public class AuthController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
+    private final GymCrmMetrics gymCrmMetrics;
+
     private final GymFacade gymFacade;
 
-    public AuthController(GymFacade gymFacade) {
+    public AuthController(GymFacade gymFacade, GymCrmMetrics gymCrmMetrics) {
         this.gymFacade = gymFacade;
+        this.gymCrmMetrics = gymCrmMetrics;
     }
 
     @ApiOperation("Login user")
@@ -41,9 +45,11 @@ public class AuthController {
         boolean trainerValid = gymFacade.isTrainerCredentialsValid(username, password);
 
         if (!traineeValid && !trainerValid) {
+            gymCrmMetrics.incrementLoginFailure();
             throw new AuthenticationException("Invalid credentials");
         }
 
+        gymCrmMetrics.incrementLoginSuccess();
         return ResponseEntity.ok().build();
     }
 
