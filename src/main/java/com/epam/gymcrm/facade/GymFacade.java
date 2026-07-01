@@ -4,6 +4,7 @@ import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.Training;
 import com.epam.gymcrm.entity.TrainingType;
+import com.epam.gymcrm.service.RegistrationResult;
 import com.epam.gymcrm.service.TraineeService;
 import com.epam.gymcrm.service.TrainerService;
 import com.epam.gymcrm.service.TrainingService;
@@ -28,7 +29,7 @@ public class GymFacade {
         this.trainingService = trainingService;
     }
 
-    public Trainee createTrainee(Trainee trainee) {
+    public RegistrationResult createTrainee(Trainee trainee) {
         return traineeService.create(trainee);
     }
 
@@ -37,11 +38,11 @@ public class GymFacade {
         return traineeService.update(username, password, trainee);
     }
 
-    public Trainer createTrainer(Trainer trainer) {
+    public RegistrationResult  createTrainer(Trainer trainer) {
         return trainerService.create(trainer);
     }
 
-    public Trainer createTrainer(String firstName, String lastName, String specializationName) {
+    public RegistrationResult  createTrainer(String firstName, String lastName, String specializationName) {
         return trainerService.create(firstName, lastName, specializationName);
     }
 

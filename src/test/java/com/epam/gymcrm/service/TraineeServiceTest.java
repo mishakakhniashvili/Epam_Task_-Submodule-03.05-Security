@@ -12,6 +12,7 @@ import com.epam.gymcrm.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,7 +30,7 @@ class TraineeServiceTest {
     private UserRepository userRepository;
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
-
+    private PasswordEncoder passwordEncoder;
     @BeforeEach
     void setUp() {
         traineeRepository = Mockito.mock(TraineeRepository.class);
@@ -37,8 +38,10 @@ class TraineeServiceTest {
         userRepository = Mockito.mock(UserRepository.class);
         usernameGenerator = Mockito.mock(UsernameGenerator.class);
         passwordGenerator = Mockito.mock(PasswordGenerator.class);
+        passwordEncoder = mock(PasswordEncoder.class);
 
         traineeService = new TraineeService();
+        traineeService.setPasswordEncoder(passwordEncoder);
         traineeService.setTraineeRepository(traineeRepository);
         traineeService.setTrainerRepository(trainerRepository);
         traineeService.setUserRepository(userRepository);
@@ -60,14 +63,19 @@ class TraineeServiceTest {
             trainee.getUser().setId(10L);
             return trainee;
         });
+        when(passwordEncoder.encode("pass123456"))
+                .thenReturn("hashed-pass123456");
 
-        Trainee createdTrainee = traineeService.create(trainee);
+        RegistrationResult result = traineeService.create(trainee);
+        assertEquals("John.Smith", result.username());
+        assertEquals("pass123456", result.rawPassword());
 
-        assertEquals(1L, createdTrainee.getId());
-        assertEquals("John.Smith", createdTrainee.getUser().getUsername());
-        assertEquals("pass123456", createdTrainee.getUser().getPassword());
-        assertTrue(createdTrainee.getUser().isActive());
+        assertEquals(1L, trainee.getId());
+        assertEquals("John.Smith", trainee.getUser().getUsername());
+        assertEquals("hashed-pass123456", trainee.getUser().getPassword());
+        assertTrue(trainee.getUser().isActive());
 
+        verify(passwordEncoder).encode("pass123456");
         verify(traineeRepository).save(trainee);
     }
 
@@ -83,15 +91,17 @@ class TraineeServiceTest {
 
     @Test
     void shouldUpdateTraineeWhenCredentialsAreValid() {
-        User authUser = new User("John", "Smith", "John.Smith", "oldpass", true);
+        User authUser = new User("John", "Smith", "John.Smith", "hashed-oldpass", true);
         Trainee existingTrainee = new Trainee(authUser, LocalDate.of(2000, 1, 1), "Tbilisi");
 
-        User updatedUser = new User("John", "Smith", "John.Smith", "oldpass", true);
+        User updatedUser = new User("John", "Smith", "John.Smith", "hashed-oldpass", true);
         Trainee updatedTrainee = new Trainee(updatedUser, LocalDate.of(2000, 1, 1), "Batumi");
         updatedTrainee.setId(1L);
 
         when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
         when(traineeRepository.save(updatedTrainee)).thenReturn(updatedTrainee);
+        when(passwordEncoder.matches("oldpass", "hashed-oldpass"))
+                .thenReturn(true);
 
         Trainee result = traineeService.update("John.Smith", "oldpass", updatedTrainee);
 
@@ -101,13 +111,16 @@ class TraineeServiceTest {
 
     @Test
     void shouldThrowAuthenticationExceptionWhenUpdatingWithWrongPassword() {
-        User authUser = new User("John", "Smith", "John.Smith", "oldpass", true);
+        User authUser =
+                new User("John", "Smith", "John.Smith", "hashed-oldpass", true);
         Trainee existingTrainee = new Trainee(authUser, LocalDate.of(2000, 1, 1), "Tbilisi");
 
         User updatedUser = new User("John", "Smith", "John.Smith", "oldpass", true);
         Trainee updatedTrainee = new Trainee(updatedUser, LocalDate.of(2000, 1, 1), "Batumi");
 
         when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(existingTrainee));
+        when(passwordEncoder.matches("wrongpass", "hashed-oldpass"))
+                .thenReturn(false);
 
         assertThrows(AuthenticationException.class,
                 () -> traineeService.update("John.Smith", "wrongpass", updatedTrainee));
@@ -117,25 +130,35 @@ class TraineeServiceTest {
 
     @Test
     void shouldChangePasswordWhenOldPasswordIsValid() {
-        User user = new User("John", "Smith", "John.Smith", "oldpass", true);
+        User user =
+                new User("John", "Smith", "John.Smith", "hashed-oldpass", true);
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
         when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
         when(traineeRepository.save(trainee)).thenReturn(trainee);
+        when(passwordEncoder.matches("oldpass", "hashed-oldpass"))
+                .thenReturn(true);
+
+        when(passwordEncoder.encode("newpass"))
+                .thenReturn("hashed-newpass");
 
         traineeService.changePassword("John.Smith", "oldpass", "newpass");
 
-        assertEquals("newpass", trainee.getUser().getPassword());
+        assertEquals("hashed-newpass", trainee.getUser().getPassword());
+        verify(passwordEncoder).encode("newpass");
         verify(traineeRepository).save(trainee);
     }
 
     @Test
     void shouldDeactivateActiveTrainee() {
-        User user = new User("John", "Smith", "John.Smith", "password", true);
+        User user =
+                new User("John", "Smith", "John.Smith", "hashed-password", true);
         Trainee trainee = new Trainee(user, LocalDate.of(2000, 1, 1), "Tbilisi");
 
         when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
         when(traineeRepository.save(trainee)).thenReturn(trainee);
+        when(passwordEncoder.matches("password", "hashed-password"))
+                .thenReturn(true);
 
         traineeService.deactivate("John.Smith", "password");
 
@@ -145,7 +168,7 @@ class TraineeServiceTest {
 
     @Test
     void shouldUpdateTraineeTrainersList() {
-        User traineeUser = new User("John", "Smith", "John.Smith", "password", true);
+        User traineeUser = new User("John", "Smith", "John.Smith", "hashed-password", true);
         Trainee trainee = new Trainee(traineeUser, LocalDate.of(2000, 1, 1), "Tbilisi");
 
         TrainingType fitness = new TrainingType("Fitness");
@@ -163,6 +186,8 @@ class TraineeServiceTest {
         when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(firstTrainer));
         when(trainerRepository.findByUserUsername("Anna.White")).thenReturn(Optional.of(secondTrainer));
         when(traineeRepository.save(trainee)).thenReturn(trainee);
+        when(passwordEncoder.matches("password", "hashed-password"))
+                .thenReturn(true);
 
         Trainee result = traineeService.updateTraineeTrainersList(
                 "John.Smith",

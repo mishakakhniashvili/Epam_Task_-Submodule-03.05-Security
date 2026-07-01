@@ -12,6 +12,7 @@ import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.service.RegistrationResult;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,7 @@ public class TrainerController {
                 request.getLastName());
 
 
-        Trainer createdTrainer = gymFacade.createTrainer(
+        RegistrationResult registration = gymFacade.createTrainer(
                 request.getFirstName(),
                 request.getLastName(),
                 request.getSpecialization()
@@ -74,8 +75,8 @@ public class TrainerController {
         gymCrmMetrics.incrementTrainerRegistrations();
 
         RegistrationResponse response = new RegistrationResponse(
-                createdTrainer.getUser().getUsername(),
-                createdTrainer.getUser().getPassword()
+                registration.username(),
+                registration.rawPassword()
         );
 
         LOGGER.info("Trainer registered successfully with username={}", response.getUsername());

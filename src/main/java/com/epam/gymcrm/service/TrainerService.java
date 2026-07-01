@@ -1,6 +1,5 @@
 package com.epam.gymcrm.service;
 
-import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
@@ -13,10 +12,10 @@ import com.epam.gymcrm.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +29,7 @@ public class TrainerService {
     private PasswordGenerator passwordGenerator;
     private UserRepository userRepository;
     private TrainingTypeRepository trainingTypeRepository;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public void setTrainerRepository(TrainerRepository trainerRepository) {
@@ -56,14 +56,21 @@ public class TrainerService {
         this.trainingTypeRepository = trainingTypeRepository;
     }
 
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+
     @Transactional
-    public Trainer create(Trainer trainer) {
+    public RegistrationResult create(Trainer trainer) {
         validateTrainerRequiredFields(trainer);
         User user = trainer.getUser();
+        String rawPassword = passwordGenerator.generatePassword();
         String username = generateUsername(trainer);
 
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setUsername(username);
-        user.setPassword(passwordGenerator.generatePassword());
         user.setActive(true);
 
         Trainer createdTrainer = trainerRepository.save(trainer);
@@ -71,7 +78,10 @@ public class TrainerService {
                 createdTrainer.getId(),
                 createdTrainer.getUser().getUsername());
 
-        return createdTrainer;
+        return new RegistrationResult(
+                createdTrainer.getUser().getUsername(),
+                rawPassword
+        );
     }
 
     @Transactional
@@ -116,7 +126,10 @@ public class TrainerService {
 
     public boolean isCredentialsValid(String username, String password) {
         return trainerRepository.findByUserUsername(username)
-                .map(trainer -> trainer.getUser().getPassword().equals(password))
+                .map(trainer -> passwordEncoder.matches(
+                        password,
+                        trainer.getUser().getPassword()
+                ))
                 .orElse(false);
     }
 
@@ -131,7 +144,7 @@ public class TrainerService {
 
         Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
 
-        trainer.getUser().setPassword(newPassword);
+        trainer.getUser().setPassword(passwordEncoder.encode(newPassword));
 
         trainerRepository.save(trainer);
 
@@ -184,7 +197,7 @@ public class TrainerService {
     }
 
     @Transactional
-    public Trainer create( String firstName, String lastName, String specializationName) {
+    public RegistrationResult create( String firstName, String lastName, String specializationName) {
         validateRequiredString(firstName, "firstName");
         validateRequiredString(lastName, "lastName");
         validateRequiredString(specializationName, "specializationName");

@@ -10,6 +10,7 @@ import com.epam.gymcrm.mapper.TraineeMapper;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.service.RegistrationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,10 +66,11 @@ class TraineeControllerTest {
         setField(request, "dateOfBirth", LocalDate.of(2000, 1, 1));
         setField(request, "address", "Tbilisi");
 
-        User createdUser = new User("John", "Smith", "John.Smith", "pass123", true);
-        Trainee createdTrainee = new Trainee(createdUser, LocalDate.of(2000, 1, 1), "Tbilisi");
+        RegistrationResult registration =
+                new RegistrationResult("John.Smith", "pass123");
 
-        when(gymFacade.createTrainee(any(Trainee.class))).thenReturn(createdTrainee);
+        when(gymFacade.createTrainee(any(Trainee.class)))
+                .thenReturn(registration);
 
         ResponseEntity<RegistrationResponse> response = traineeController.registerTrainee(request);
 

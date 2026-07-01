@@ -12,6 +12,7 @@ import com.epam.gymcrm.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class TraineeService {
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
     private TrainerRepository trainerRepository;
+    private PasswordEncoder passwordEncoder;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TraineeService.class);
 
@@ -57,14 +59,20 @@ public class TraineeService {
         this.trainerRepository = trainerRepository;
     }
 
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
     @Transactional
-    public Trainee create(Trainee trainee) {
+    public RegistrationResult create(Trainee trainee) {
         validateTraineeRequiredFields(trainee);
         User user = trainee.getUser();
         String username = generateUsername(trainee);
+        String rawPassword = passwordGenerator.generatePassword();
 
         user.setUsername(username);
-        user.setPassword(passwordGenerator.generatePassword());
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setActive(true);
 
         Trainee createdTrainee = traineeRepository.save(trainee);
@@ -73,7 +81,10 @@ public class TraineeService {
                 createdTrainee.getId(),
                 createdTrainee.getUser().getUsername());
 
-        return createdTrainee;
+        return new RegistrationResult(
+                createdTrainee.getUser().getUsername(),
+                rawPassword
+        );
     }
 
     //finds every existing username and generates a new one according to the rules
@@ -119,7 +130,10 @@ public class TraineeService {
 
     public boolean isCredentialsValid(String username, String password) {
         return traineeRepository.findByUserUsername(username)
-                .map(trainee -> trainee.getUser().getPassword().equals(password))
+                .map(trainee -> passwordEncoder.matches(
+                        password,
+                        trainee.getUser().getPassword()
+                ))
                 .orElse(false);
     }
 
@@ -135,7 +149,7 @@ public class TraineeService {
 
         Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
 
-        trainee.getUser().setPassword(newPassword);
+        trainee.getUser().setPassword(passwordEncoder.encode(newPassword));
 
         traineeRepository.save(trainee);
 

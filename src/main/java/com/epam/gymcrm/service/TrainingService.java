@@ -14,6 +14,7 @@ import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class TrainingService {
     private TraineeRepository traineeRepository;
     private TrainerRepository trainerRepository;
     private TrainingTypeRepository trainingTypeRepository;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public void setTrainingRepository(TrainingRepository trainingRepository) {
@@ -50,6 +52,13 @@ public class TrainingService {
     public void setTrainingTypeRepository(TrainingTypeRepository trainingTypeRepository) {
         this.trainingTypeRepository = trainingTypeRepository;
     }
+
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+
 
     @Transactional
     public Training create(Training training) {
@@ -88,10 +97,15 @@ public class TrainingService {
             throw new ValidationException("Training duration is less or equal to 0");
         }
 
+
+
         Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
 
-        if (!trainer.getUser().getPassword().equals(trainerPassword)) {
+        if (!passwordEncoder.matches(
+                trainerPassword,
+                trainer.getUser().getPassword()
+        )) {
             throw new AuthenticationException("Wrong Password");
         }
 
@@ -140,7 +154,10 @@ public class TrainingService {
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
 
-        if (!trainee.getUser().getPassword().equals(traineePassword)) {
+        if (!passwordEncoder.matches(
+                traineePassword,
+                trainee.getUser().getPassword()
+        )) {
             throw new AuthenticationException("Invalid credentials entered");
         }
 
@@ -171,7 +188,10 @@ public class TrainingService {
         Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
 
-        if (!trainer.getUser().getPassword().equals(trainerPassword)) {
+        if (!passwordEncoder.matches(
+                trainerPassword,
+                trainer.getUser().getPassword()
+        )) {
             throw new AuthenticationException("Invalid credentials entered");
         }
 

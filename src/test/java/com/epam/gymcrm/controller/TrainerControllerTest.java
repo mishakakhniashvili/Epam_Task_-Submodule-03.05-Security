@@ -9,6 +9,7 @@ import com.epam.gymcrm.mapper.TraineeMapper;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.service.RegistrationResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,11 +59,11 @@ class TrainerControllerTest {
         setField(request, "lastName", "Brown");
         setField(request, "specialization", "Fitness");
 
-        User createdUser = new User("Mike", "Brown", "Mike.Brown", "pass123", true);
-        TrainingType fitness = new TrainingType("Fitness");
-        Trainer createdTrainer = new Trainer(createdUser, fitness);
+        RegistrationResult registration =
+                new RegistrationResult("Mike.Brown", "pass123");
 
-        when(gymFacade.createTrainer("Mike", "Brown", "Fitness")).thenReturn(createdTrainer);
+        when(gymFacade.createTrainer("Mike", "Brown", "Fitness"))
+                .thenReturn(registration);
 
         ResponseEntity<RegistrationResponse> response = trainerController.registerTrainer(request);
 
