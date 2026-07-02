@@ -7,6 +7,7 @@ import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import com.epam.gymcrm.security.JwtService;
+import com.epam.gymcrm.security.LoginAttemptService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,16 +35,20 @@ public class AuthController {
 
     private final JwtService jwtService;
 
+    private final LoginAttemptService loginAttemptService;
+
     public AuthController(
             GymFacade gymFacade,
             GymCrmMetrics gymCrmMetrics,
             AuthenticationManager authenticationManager,
-            JwtService jwtService
+            JwtService jwtService,
+            LoginAttemptService loginAttemptService
     ) {
         this.gymFacade = gymFacade;
         this.gymCrmMetrics = gymCrmMetrics;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @ApiOperation("Login user")
@@ -55,21 +60,39 @@ public class AuthController {
     public ResponseEntity<TokenResponse> login(
             @Valid @RequestBody LoginRequest request
     ) {
+        String username = request.username();
+
         LOGGER.info(
                 "Login request received for username={}",
-                request.username()
+                username
         );
+
+        if (loginAttemptService.isBlocked(username)) {
+            gymCrmMetrics.incrementLoginFailure();
+
+            LOGGER.warn(
+                    "Login rejected because username={} is temporarily blocked",
+                    username
+            );
+
+            throw new AuthenticationException(
+                    "User is temporarily blocked"
+            );
+        }
 
         try {
             Authentication authentication =
                     authenticationManager.authenticate(
                             new UsernamePasswordAuthenticationToken(
-                                    request.username(),
+                                    username,
                                     request.password()
                             )
                     );
 
-            String token = jwtService.generateToken(authentication);
+            loginAttemptService.loginSucceeded(username);
+
+            String token =
+                    jwtService.generateToken(authentication);
 
             gymCrmMetrics.incrementLoginSuccess();
 
@@ -82,17 +105,19 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (org.springframework.security.core.AuthenticationException ex) {
+            loginAttemptService.loginFailed(username);
             gymCrmMetrics.incrementLoginFailure();
 
             LOGGER.warn(
                     "Login failed for username={}",
-                    request.username()
+                    username
             );
 
-            throw new AuthenticationException("Invalid credentials");
+            throw new AuthenticationException(
+                    "Invalid credentials"
+            );
         }
     }
-
 
 
     @PutMapping("/password")

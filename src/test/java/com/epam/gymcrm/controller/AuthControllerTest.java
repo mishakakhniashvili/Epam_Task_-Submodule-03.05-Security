@@ -7,6 +7,7 @@ import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import com.epam.gymcrm.security.JwtService;
+import com.epam.gymcrm.security.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,9 @@ class AuthControllerTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
     private AuthController authController;
 
     @BeforeEach
@@ -45,17 +49,24 @@ class AuthControllerTest {
                 gymFacade,
                 gymCrmMetrics,
                 authenticationManager,
-                jwtService
+                jwtService,
+                loginAttemptService
         );
     }
 
     @Test
     void loginShouldReturnJwtWhenCredentialsAreValid() {
         LoginRequest request =
-                new LoginRequest("John.Smith", "pass");
+                new LoginRequest(
+                        "John.Smith",
+                        "pass"
+                );
 
         Authentication authentication =
                 mock(Authentication.class);
+
+        when(loginAttemptService.isBlocked("John.Smith"))
+                .thenReturn(false);
 
         when(authenticationManager.authenticate(
                 any(Authentication.class)
@@ -70,7 +81,11 @@ class AuthControllerTest {
         ResponseEntity<TokenResponse> response =
                 authController.login(request);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(
+                200,
+                response.getStatusCode().value()
+        );
+
         assertNotNull(response.getBody());
 
         assertEquals(
@@ -88,6 +103,12 @@ class AuthControllerTest {
                 response.getBody().expiresIn()
         );
 
+        verify(loginAttemptService)
+                .loginSucceeded("John.Smith");
+
+        verify(loginAttemptService, never())
+                .loginFailed(anyString());
+
         verify(gymCrmMetrics)
                 .incrementLoginSuccess();
 
@@ -96,14 +117,22 @@ class AuthControllerTest {
     }
 
     @Test
-    void loginShouldThrowAuthenticationExceptionWhenCredentialsAreInvalid() {
+    void failedLoginShouldRecordFailedAttempt() {
         LoginRequest request =
-                new LoginRequest("bad", "wrong");
+                new LoginRequest(
+                        "John.Smith",
+                        "wrong"
+                );
+
+        when(loginAttemptService.isBlocked("John.Smith"))
+                .thenReturn(false);
 
         when(authenticationManager.authenticate(
                 any(Authentication.class)
         )).thenThrow(
-                new BadCredentialsException("Bad credentials")
+                new BadCredentialsException(
+                        "Bad credentials"
+                )
         );
 
         assertThrows(
@@ -111,14 +140,55 @@ class AuthControllerTest {
                 () -> authController.login(request)
         );
 
+        verify(loginAttemptService)
+                .loginFailed("John.Smith");
+
+        verify(loginAttemptService, never())
+                .loginSucceeded(anyString());
+
         verify(gymCrmMetrics)
                 .incrementLoginFailure();
 
-        verify(gymCrmMetrics, never())
-                .incrementLoginSuccess();
+        verify(jwtService, never())
+                .generateToken(any());
+    }
+
+    @Test
+    void blockedUsernameShouldNotBeAuthenticated() {
+        LoginRequest request =
+                new LoginRequest(
+                        "John.Smith",
+                        "pass"
+                );
+
+        when(loginAttemptService.isBlocked("John.Smith"))
+                .thenReturn(true);
+
+        AuthenticationException exception =
+                assertThrows(
+                        AuthenticationException.class,
+                        () -> authController.login(request)
+                );
+
+        assertEquals(
+                "User is temporarily blocked",
+                exception.getMessage()
+        );
+
+        verify(authenticationManager, never())
+                .authenticate(any());
 
         verify(jwtService, never())
                 .generateToken(any());
+
+        verify(loginAttemptService, never())
+                .loginSucceeded(anyString());
+
+        verify(loginAttemptService, never())
+                .loginFailed(anyString());
+
+        verify(gymCrmMetrics)
+                .incrementLoginFailure();
     }
 
     @Test
@@ -132,7 +202,6 @@ class AuthControllerTest {
         ChangePasswordRequest request =
                 new ChangePasswordRequest();
 
-        // The controller must ignore this username.
         setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
@@ -148,9 +217,10 @@ class AuthControllerTest {
                         request
                 );
 
-        assertEquals(200, response.getStatusCode().value());
-
-        verify(authentication).getName();
+        assertEquals(
+                200,
+                response.getStatusCode().value()
+        );
 
         verify(gymFacade).changeTraineePassword(
                 "John.Smith",
@@ -177,7 +247,6 @@ class AuthControllerTest {
         ChangePasswordRequest request =
                 new ChangePasswordRequest();
 
-        // The controller must ignore this username.
         setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
@@ -198,9 +267,10 @@ class AuthControllerTest {
                         request
                 );
 
-        assertEquals(200, response.getStatusCode().value());
-
-        verify(authentication).getName();
+        assertEquals(
+                200,
+                response.getStatusCode().value()
+        );
 
         verify(gymFacade).changeTrainerPassword(
                 "Mike.Brown",
@@ -248,8 +318,6 @@ class AuthControllerTest {
                         request
                 )
         );
-
-        verify(authentication).getName();
 
         verify(gymFacade, never())
                 .changeTraineePassword(
