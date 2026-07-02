@@ -120,7 +120,6 @@ public class GymFacade {
     }
     public List<Training> getTraineeTrainings(
             String traineeUsername,
-            String traineePassword,
             LocalDate fromDate,
             LocalDate toDate,
             String trainerUsername,
@@ -128,14 +127,12 @@ public class GymFacade {
     ) {
         return trainingService.getTraineeTrainings(
                 traineeUsername,
-                traineePassword,
                 fromDate,
                 toDate,
                 trainerUsername,
                 trainingTypeName
         );
     }
-
     public List<Training> getTrainerTrainings(
             String trainerUsername,
             String trainerPassword,
@@ -152,8 +149,8 @@ public class GymFacade {
         );
     }
 
-    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername, String traineePassword){
-        return traineeService.getTrainersNotAssignedToTrainee(traineeUsername, traineePassword);
+    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername){
+        return traineeService.getTrainersNotAssignedToTrainee(traineeUsername);
     }
 
     public Trainee updateTraineeTrainersList(
@@ -246,4 +243,16 @@ public class GymFacade {
     public List<TrainingType> getTrainingTypes() {
         return trainingService.getTrainingTypes();
     }
+
+    public Trainee updateTraineeTrainersList(
+            String traineeUsername,
+            List<String> trainerUsernames
+    ) {
+        return traineeService.updateTraineeTrainersList(
+                traineeUsername,
+                trainerUsernames
+        );
+    }
+
+
 }

@@ -241,6 +241,11 @@ public class TraineeService {
         return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
     }
 
+    @Transactional(readOnly = true)
+    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername){
+        return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
+    }
+
     @Transactional
     public Trainee updateTraineeTrainersList(
             String traineeUsername,
@@ -249,6 +254,36 @@ public class TraineeService {
     ) {
         validateCredentials(traineeUsername, traineePassword);
 
+        Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
+                .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
+
+        if (trainerUsernames == null) {
+            throw new ValidationException("Trainer usernames cannot be null");
+        }
+
+        Set<Trainer> trainers = new HashSet<>();
+
+        for (String trainerUsername : trainerUsernames) {
+            if (trainerUsername == null || trainerUsername.isBlank()) {
+                throw new ValidationException("Trainer username cannot be blank");
+            }
+
+            Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
+                    .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
+
+            trainers.add(trainer);
+        }
+
+        trainee.setTrainers(trainers);
+
+        return traineeRepository.save(trainee);
+    }
+
+    @Transactional
+    public Trainee updateTraineeTrainersList(
+            String traineeUsername,
+            List<String> trainerUsernames
+    ) {
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
 

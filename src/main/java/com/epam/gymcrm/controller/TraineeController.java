@@ -138,7 +138,7 @@ public class TraineeController {
             @Valid @RequestBody TraineeUpdateRequest request
     ) {
         String username = authentication.getName();
-        LOGGER.info("Trainee profile update request received for username={}", request.getUsername());
+        LOGGER.info("Trainee profile update request received for username={}", username);
         Trainee trainee = gymFacade.updateProfile(
                 username,
                 request.getFirstName(),
@@ -149,7 +149,7 @@ public class TraineeController {
         );
         TraineeProfileResponse response = traineeMapper.toProfileResponse(trainee);
 
-        LOGGER.info("Trainee profile successfully updated for username={}", request.getUsername());
+        LOGGER.info("Trainee profile successfully updated for username={}", username);
 
         return  ResponseEntity.ok(response);
     }
@@ -203,12 +203,12 @@ public class TraineeController {
     })
     @GetMapping("/not-assigned-trainers")
     public ResponseEntity<List<TrainerShortResponse>> getNotAssignedTrainers(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee not assigned trainers request received for username= {}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        List<Trainer> trainers = gymFacade.getTrainersNotAssignedToTrainee(username, password);
+        List<Trainer> trainers =
+                gymFacade.getTrainersNotAssignedToTrainee(username);
 
         List<TrainerShortResponse> response = trainers.stream()
                 .map(trainerMapper::toShortResponse)
@@ -227,22 +227,19 @@ public class TraineeController {
     })
     @PutMapping("/trainers")
     public ResponseEntity<List<TrainerShortResponse>> updateTraineeTrainersList(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody TraineeTrainersUpdateRequest request
     ) {
-        LOGGER.info("Trainee trainers list update request received for username={}", request.getUsername());
+        String username = authentication.getName();
 
         Trainee trainee = gymFacade.updateTraineeTrainersList(
-                request.getUsername(),
-                password,
+                username,
                 request.getTrainerUsernames()
         );
 
         List<TrainerShortResponse> response = trainee.getTrainers().stream()
                 .map(trainerMapper::toShortResponse)
                 .toList();
-
-        LOGGER.info("Trainee trainers list successfully updated for username={}", request.getUsername());
 
         return ResponseEntity.ok(response);
     }
@@ -257,18 +254,30 @@ public class TraineeController {
     })
     @GetMapping("/trainings")
     public ResponseEntity<List<TraineeTrainingResponse>> getTraineeTrainings(
-            @RequestParam String username,
-            @RequestParam String password,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) String trainerUsername,
-            @RequestParam(required = false) String trainingTypeName
+            Authentication authentication,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fromDate,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate toDate,
+
+            @RequestParam(required = false)
+            String trainerUsername,
+
+            @RequestParam(required = false)
+            String trainingTypeName
     ) {
-        LOGGER.info("Trainee trainings list request received for username={}", username);
+        String username = authentication.getName();
+
+        LOGGER.info(
+                "Trainee trainings list request received for username={}",
+                username
+        );
 
         List<Training> trainings = gymFacade.getTraineeTrainings(
                 username,
-                password,
                 fromDate,
                 toDate,
                 trainerUsername,

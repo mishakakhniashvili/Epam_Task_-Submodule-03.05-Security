@@ -14,6 +14,7 @@ import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -137,15 +138,39 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<Training> getTraineeTrainings(
+            Authentication authentication,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String trainerUsername,
+            String trainingTypeName
+    ) {
+        String username = authentication.getName();
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ValidationException("From date cannot be after to date");
+        }
+
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("trainee", username));
+
+
+        return trainingRepository.findTraineeTrainings(
+                username,
+                fromDate,
+                toDate,
+                trainerUsername,
+                trainingTypeName
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Training> getTraineeTrainings(
             String traineeUsername,
-            String traineePassword,
             LocalDate fromDate,
             LocalDate toDate,
             String trainerUsername,
             String trainingTypeName
     ) {
         validateParameter(traineeUsername);
-        validateParameter(traineePassword);
 
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new ValidationException("From date cannot be after to date");
@@ -153,13 +178,6 @@ public class TrainingService {
 
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
-
-        if (!passwordEncoder.matches(
-                traineePassword,
-                trainee.getUser().getPassword()
-        )) {
-            throw new AuthenticationException("Invalid credentials entered");
-        }
 
         return trainingRepository.findTraineeTrainings(
                 traineeUsername,

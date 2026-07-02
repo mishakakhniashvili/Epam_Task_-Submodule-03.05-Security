@@ -61,14 +61,23 @@ class TraineeControllerTest {
 
     @Test
     void registerTraineeShouldReturnCreatedRegistrationResponse() {
-        TraineeRegistrationRequest request = new TraineeRegistrationRequest();
+        TraineeRegistrationRequest request =
+                new TraineeRegistrationRequest();
+
         setField(request, "firstName", "John");
         setField(request, "lastName", "Smith");
-        setField(request, "dateOfBirth", LocalDate.of(2000, 1, 1));
+        setField(
+                request,
+                "dateOfBirth",
+                LocalDate.of(2000, 1, 1)
+        );
         setField(request, "address", "Tbilisi");
 
         RegistrationResult registration =
-                new RegistrationResult("John.Smith", "pass123");
+                new RegistrationResult(
+                        "John.Smith",
+                        "pass123"
+                );
 
         when(gymFacade.createTrainee(any(Trainee.class)))
                 .thenReturn(registration);
@@ -78,16 +87,26 @@ class TraineeControllerTest {
 
         assertEquals(201, response.getStatusCode().value());
         assertNotNull(response.getBody());
-        assertEquals("John.Smith", response.getBody().getUsername());
-        assertEquals("pass123", response.getBody().getPassword());
+        assertEquals(
+                "John.Smith",
+                response.getBody().getUsername()
+        );
+        assertEquals(
+                "pass123",
+                response.getBody().getPassword()
+        );
 
-        verify(gymFacade).createTrainee(any(Trainee.class));
-        verify(gymCrmMetrics).incrementTraineeRegistrations();
+        verify(gymFacade)
+                .createTrainee(any(Trainee.class));
+
+        verify(gymCrmMetrics)
+                .incrementTraineeRegistrations();
     }
 
     @Test
     void getTraineeProfileShouldUseAuthenticatedUsername() {
-        Authentication authentication = mock(Authentication.class);
+        Authentication authentication =
+                mock(Authentication.class);
 
         when(authentication.getName())
                 .thenReturn("John.Smith");
@@ -124,31 +143,41 @@ class TraineeControllerTest {
                 .thenReturn(profileResponse);
 
         ResponseEntity<TraineeProfileResponse> response =
-                traineeController.getTraineeProfile(authentication);
+                traineeController.getTraineeProfile(
+                        authentication
+                );
 
         assertEquals(200, response.getStatusCode().value());
         assertSame(profileResponse, response.getBody());
 
         verify(authentication).getName();
-        verify(gymFacade).findTraineeByUsername("John.Smith");
-        verify(traineeMapper).toProfileResponse(trainee);
+
+        verify(gymFacade)
+                .findTraineeByUsername("John.Smith");
+
+        verify(traineeMapper)
+                .toProfileResponse(trainee);
     }
 
     @Test
     void updateTraineeProfileShouldUseAuthenticatedUsername() {
-        Authentication authentication = mock(Authentication.class);
+        Authentication authentication =
+                mock(Authentication.class);
 
         when(authentication.getName())
                 .thenReturn("John.Smith");
 
-        TraineeUpdateRequest request = new TraineeUpdateRequest();
+        TraineeUpdateRequest request =
+                new TraineeUpdateRequest();
 
-        // Deliberately different from the JWT username.
-        // The controller must ignore this value when selecting the account.
         setField(request, "username", "Other.User");
         setField(request, "firstName", "John");
         setField(request, "lastName", "Updated");
-        setField(request, "dateOfBirth", LocalDate.of(2000, 1, 1));
+        setField(
+                request,
+                "dateOfBirth",
+                LocalDate.of(2000, 1, 1)
+        );
         setField(request, "address", "Batumi");
         setField(request, "active", true);
 
@@ -209,60 +238,101 @@ class TraineeControllerTest {
                 true
         );
 
-        verify(traineeMapper).toProfileResponse(trainee);
+        verify(traineeMapper)
+                .toProfileResponse(trainee);
     }
 
     @Test
     void deleteTraineeProfileShouldUseAuthenticatedUsername() {
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("John.Smith");
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
 
         ResponseEntity<Void> response =
-                traineeController.deleteTraineeProfile(authentication);
+                traineeController.deleteTraineeProfile(
+                        authentication
+                );
 
         assertEquals(200, response.getStatusCode().value());
+
         verify(authentication).getName();
-        verify(gymFacade).deleteTraineeByUsername("John.Smith");
+
+        verify(gymFacade)
+                .deleteTraineeByUsername("John.Smith");
     }
 
     @Test
     void updateTraineeStatusShouldActivateAuthenticatedTrainee() {
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("John.Smith");
+        Authentication authentication =
+                mock(Authentication.class);
 
-        ActivationRequest request = new ActivationRequest();
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
+        ActivationRequest request =
+                new ActivationRequest();
+
         setField(request, "username", "Other.User");
         setField(request, "active", true);
 
         ResponseEntity<Void> response =
-                traineeController.updateTraineeStatus(authentication, request);
+                traineeController.updateTraineeStatus(
+                        authentication,
+                        request
+                );
 
         assertEquals(200, response.getStatusCode().value());
+
         verify(authentication).getName();
-        verify(gymFacade).activateTrainee("John.Smith");
-        verify(gymFacade, never()).deactivateTrainee(anyString());
+
+        verify(gymFacade)
+                .activateTrainee("John.Smith");
+
+        verify(gymFacade, never())
+                .deactivateTrainee(anyString());
     }
 
     @Test
     void updateTraineeStatusShouldDeactivateAuthenticatedTrainee() {
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("John.Smith");
+        Authentication authentication =
+                mock(Authentication.class);
 
-        ActivationRequest request = new ActivationRequest();
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
+        ActivationRequest request =
+                new ActivationRequest();
+
         setField(request, "username", "Other.User");
         setField(request, "active", false);
 
         ResponseEntity<Void> response =
-                traineeController.updateTraineeStatus(authentication, request);
+                traineeController.updateTraineeStatus(
+                        authentication,
+                        request
+                );
 
         assertEquals(200, response.getStatusCode().value());
+
         verify(authentication).getName();
-        verify(gymFacade).deactivateTrainee("John.Smith");
-        verify(gymFacade, never()).activateTrainee(anyString());
+
+        verify(gymFacade)
+                .deactivateTrainee("John.Smith");
+
+        verify(gymFacade, never())
+                .activateTrainee(anyString());
     }
 
     @Test
-    void getNotAssignedTrainersShouldReturnShortTrainerList() {
+    void getNotAssignedTrainersShouldUseAuthenticatedUsername() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
         User trainerUser = new User(
                 "Mike",
                 "Brown",
@@ -271,8 +341,11 @@ class TraineeControllerTest {
                 true
         );
 
-        TrainingType fitness = new TrainingType("Fitness");
-        Trainer trainer = new Trainer(trainerUser, fitness);
+        TrainingType fitness =
+                new TrainingType("Fitness");
+
+        Trainer trainer =
+                new Trainer(trainerUser, fitness);
 
         TrainerShortResponse shortResponse =
                 new TrainerShortResponse(
@@ -283,8 +356,7 @@ class TraineeControllerTest {
                 );
 
         when(gymFacade.getTrainersNotAssignedToTrainee(
-                "John.Smith",
-                "pass123"
+                "John.Smith"
         )).thenReturn(List.of(trainer));
 
         when(trainerMapper.toShortResponse(trainer))
@@ -292,22 +364,40 @@ class TraineeControllerTest {
 
         ResponseEntity<List<TrainerShortResponse>> response =
                 traineeController.getNotAssignedTrainers(
-                        "John.Smith",
-                        "pass123"
+                        authentication
                 );
 
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        assertSame(shortResponse, response.getBody().get(0));
+        assertSame(
+                shortResponse,
+                response.getBody().get(0)
+        );
+
+        verify(authentication).getName();
+
+        verify(gymFacade)
+                .getTrainersNotAssignedToTrainee(
+                        "John.Smith"
+                );
+
+        verify(trainerMapper)
+                .toShortResponse(trainer);
     }
 
     @Test
-    void updateTraineeTrainersListShouldReturnUpdatedTrainerList() {
+    void updateTraineeTrainersListShouldUseAuthenticatedUsername() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
         TraineeTrainersUpdateRequest request =
                 new TraineeTrainersUpdateRequest();
 
-        setField(request, "username", "John.Smith");
+        setField(request, "username", "Other.User");
         setField(
                 request,
                 "trainerUsernames",
@@ -336,8 +426,11 @@ class TraineeControllerTest {
                 true
         );
 
-        TrainingType fitness = new TrainingType("Fitness");
-        Trainer trainer = new Trainer(trainerUser, fitness);
+        TrainingType fitness =
+                new TrainingType("Fitness");
+
+        Trainer trainer =
+                new Trainer(trainerUser, fitness);
 
         trainee.setTrainers(Set.of(trainer));
 
@@ -351,7 +444,6 @@ class TraineeControllerTest {
 
         when(gymFacade.updateTraineeTrainersList(
                 "John.Smith",
-                "pass123",
                 List.of("Mike.Brown")
         )).thenReturn(trainee);
 
@@ -360,18 +452,37 @@ class TraineeControllerTest {
 
         ResponseEntity<List<TrainerShortResponse>> response =
                 traineeController.updateTraineeTrainersList(
-                        "pass123",
+                        authentication,
                         request
                 );
 
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        assertSame(shortResponse, response.getBody().get(0));
+        assertSame(
+                shortResponse,
+                response.getBody().get(0)
+        );
+
+        verify(authentication).getName();
+
+        verify(gymFacade).updateTraineeTrainersList(
+                "John.Smith",
+                List.of("Mike.Brown")
+        );
+
+        verify(trainerMapper)
+                .toShortResponse(trainer);
     }
 
     @Test
-    void getTraineeTrainingsShouldReturnTrainingList() {
+    void getTraineeTrainingsShouldUseAuthenticatedUsername() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
         User traineeUser = new User(
                 "John",
                 "Smith",
@@ -394,8 +505,11 @@ class TraineeControllerTest {
                 true
         );
 
-        TrainingType fitness = new TrainingType("Fitness");
-        Trainer trainer = new Trainer(trainerUser, fitness);
+        TrainingType fitness =
+                new TrainingType("Fitness");
+
+        Trainer trainer =
+                new Trainer(trainerUser, fitness);
 
         Training training = new Training(
                 "Morning Training",
@@ -415,11 +529,16 @@ class TraineeControllerTest {
                         "Mike Brown"
                 );
 
+        LocalDate fromDate =
+                LocalDate.of(2026, 1, 1);
+
+        LocalDate toDate =
+                LocalDate.of(2026, 12, 31);
+
         when(gymFacade.getTraineeTrainings(
                 "John.Smith",
-                "pass123",
-                LocalDate.of(2026, 1, 1),
-                LocalDate.of(2026, 12, 31),
+                fromDate,
+                toDate,
                 "Mike.Brown",
                 "Fitness"
         )).thenReturn(List.of(training));
@@ -429,10 +548,9 @@ class TraineeControllerTest {
 
         ResponseEntity<List<TraineeTrainingResponse>> response =
                 traineeController.getTraineeTrainings(
-                        "John.Smith",
-                        "pass123",
-                        LocalDate.of(2026, 1, 1),
-                        LocalDate.of(2026, 12, 31),
+                        authentication,
+                        fromDate,
+                        toDate,
                         "Mike.Brown",
                         "Fitness"
                 );
@@ -440,7 +558,23 @@ class TraineeControllerTest {
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        assertSame(trainingResponse, response.getBody().get(0));
+        assertSame(
+                trainingResponse,
+                response.getBody().get(0)
+        );
+
+        verify(authentication).getName();
+
+        verify(gymFacade).getTraineeTrainings(
+                "John.Smith",
+                fromDate,
+                toDate,
+                "Mike.Brown",
+                "Fitness"
+        );
+
+        verify(trainingMapper)
+                .toTraineeTrainingResponse(training);
     }
 
     private static void setField(
@@ -450,7 +584,8 @@ class TraineeControllerTest {
     ) {
         try {
             Field field =
-                    target.getClass().getDeclaredField(fieldName);
+                    target.getClass()
+                            .getDeclaredField(fieldName);
 
             field.setAccessible(true);
             field.set(target, value);
