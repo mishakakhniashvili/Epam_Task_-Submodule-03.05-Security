@@ -172,21 +172,27 @@ public class TrainerController {
     })
     @GetMapping("/trainings")
     public ResponseEntity<List<TrainerTrainingResponse>> getTrainerTrainings(
-            @RequestParam String username,
-            @RequestParam String password,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) String traineeUsername
+            Authentication authentication,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fromDate,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate toDate,
+
+            @RequestParam(required = false)
+            String traineeUsername
     ) {
-        LOGGER.info("Trainer trainings list request received for username={}", username);
+        String username = authentication.getName();
 
         List<Training> trainings = gymFacade.getTrainerTrainings(
                 username,
-                password,
                 fromDate,
                 toDate,
                 traineeUsername
         );
+
         List<TrainerTrainingResponse> response = trainings.stream()
                 .map(trainingMapper::toTrainerTrainingResponse)
                 .toList();

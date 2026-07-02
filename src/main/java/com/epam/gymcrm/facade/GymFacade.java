@@ -253,6 +253,33 @@ public class GymFacade {
                 trainerUsernames
         );
     }
+    public List<Training> getTrainerTrainings(
+            String trainerUsername,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String traineeUsername
+    ) {
+        return trainingService.getTrainerTrainings(
+                trainerUsername,
+                fromDate,
+                toDate,
+                traineeUsername
+        );
+    }
 
-
+    public Training addTraining(
+            String trainerUsername,
+            String traineeUsername,
+            String trainingName,
+            LocalDate trainingDate,
+            Integer trainingDuration
+    ) {
+        return trainingService.addTraining(
+                trainerUsername,
+                traineeUsername,
+                trainingName,
+                trainingDate,
+                trainingDuration
+        );
+    }
 }
