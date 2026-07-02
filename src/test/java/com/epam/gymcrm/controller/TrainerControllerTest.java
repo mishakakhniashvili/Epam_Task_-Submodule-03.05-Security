@@ -163,7 +163,6 @@ class TrainerControllerTest {
         TrainerUpdateRequest request =
                 new TrainerUpdateRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "firstName", "Mike");
         setField(request, "lastName", "Updated");
         setField(request, "active", true);
@@ -235,7 +234,6 @@ class TrainerControllerTest {
         ActivationRequest request =
                 new ActivationRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "active", true);
 
         ResponseEntity<Void> response =
@@ -266,7 +264,6 @@ class TrainerControllerTest {
         ActivationRequest request =
                 new ActivationRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "active", false);
 
         ResponseEntity<Void> response =

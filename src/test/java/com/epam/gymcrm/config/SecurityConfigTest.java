@@ -190,7 +190,7 @@ class SecurityConfigTest {
 
         assertEquals(
                 "gym-crm",
-                decodedToken.getIssuer().toString()
+                decodedToken.getClaimAsString("iss")
         );
 
         assertNotNull(decodedToken.getId());

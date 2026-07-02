@@ -170,7 +170,7 @@ class TraineeControllerTest {
         TraineeUpdateRequest request =
                 new TraineeUpdateRequest();
 
-        setField(request, "username", "Other.User");
+
         setField(request, "firstName", "John");
         setField(request, "lastName", "Updated");
         setField(
@@ -274,7 +274,6 @@ class TraineeControllerTest {
         ActivationRequest request =
                 new ActivationRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "active", true);
 
         ResponseEntity<Void> response =
@@ -305,7 +304,6 @@ class TraineeControllerTest {
         ActivationRequest request =
                 new ActivationRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "active", false);
 
         ResponseEntity<Void> response =
@@ -397,7 +395,6 @@ class TraineeControllerTest {
         TraineeTrainersUpdateRequest request =
                 new TraineeTrainersUpdateRequest();
 
-        setField(request, "username", "Other.User");
         setField(
                 request,
                 "trainerUsernames",

@@ -216,7 +216,6 @@ class AuthControllerTest {
         ChangePasswordRequest request =
                 new ChangePasswordRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
 
@@ -235,6 +234,8 @@ class AuthControllerTest {
                 200,
                 response.getStatusCode().value()
         );
+
+        verify(authentication).getName();
 
         verify(gymFacade).changeTraineePassword(
                 "John.Smith",
@@ -261,7 +262,6 @@ class AuthControllerTest {
         ChangePasswordRequest request =
                 new ChangePasswordRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
 
@@ -285,6 +285,8 @@ class AuthControllerTest {
                 200,
                 response.getStatusCode().value()
         );
+
+        verify(authentication).getName();
 
         verify(gymFacade).changeTrainerPassword(
                 "Mike.Brown",
@@ -311,7 +313,6 @@ class AuthControllerTest {
         ChangePasswordRequest request =
                 new ChangePasswordRequest();
 
-        setField(request, "username", "Other.User");
         setField(request, "oldPassword", "wrongPass");
         setField(request, "newPassword", "newPass");
 
@@ -332,6 +333,8 @@ class AuthControllerTest {
                         request
                 )
         );
+
+        verify(authentication).getName();
 
         verify(gymFacade, never())
                 .changeTraineePassword(

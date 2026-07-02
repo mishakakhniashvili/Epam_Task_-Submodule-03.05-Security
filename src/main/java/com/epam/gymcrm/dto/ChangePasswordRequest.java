@@ -7,9 +7,6 @@ import lombok.Setter;
 @Setter
 @Getter
 public class ChangePasswordRequest {
-    @NotBlank(message = "username is required")
-    private String username;
-
     @NotBlank(message = "oldPassword is required")
     private String oldPassword;
 

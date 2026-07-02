@@ -12,9 +12,6 @@ public class TrainerUpdateRequest {
     @NotBlank(message = "lastName is required")
     private String lastName;
 
-    @NotBlank(message = "username is required")
-    private String username;
-
     @NotNull(message = "active can't be null")
     private Boolean active;
 }

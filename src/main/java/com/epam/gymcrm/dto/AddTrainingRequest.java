@@ -9,10 +9,6 @@ import java.time.LocalDate;
 
 @Getter
 public class AddTrainingRequest {
-
-    @NotBlank
-    private String trainerUsername;
-
     @NotBlank
     private String traineeUsername;
 

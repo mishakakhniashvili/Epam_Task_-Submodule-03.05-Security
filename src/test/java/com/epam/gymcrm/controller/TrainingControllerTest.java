@@ -51,13 +51,6 @@ class TrainingControllerTest {
         AddTrainingRequest request =
                 new AddTrainingRequest();
 
-        // Deliberately different from the JWT username.
-        setField(
-                request,
-                "trainerUsername",
-                "Other.Trainer"
-        );
-
         setField(
                 request,
                 "traineeUsername",
