@@ -28,8 +28,6 @@ class AuthControllerTest {
     @Mock
     private GymFacade gymFacade;
 
-    private AuthController authController;
-
     @Mock
     private GymCrmMetrics gymCrmMetrics;
 
@@ -38,6 +36,8 @@ class AuthControllerTest {
 
     @Mock
     private JwtService jwtService;
+
+    private AuthController authController;
 
     @BeforeEach
     void setUp() {
@@ -54,12 +54,16 @@ class AuthControllerTest {
         LoginRequest request =
                 new LoginRequest("John.Smith", "pass");
 
-        Authentication authentication = mock(Authentication.class);
+        Authentication authentication =
+                mock(Authentication.class);
 
-        when(authenticationManager.authenticate(any(Authentication.class)))
-                .thenReturn(authentication);
+        when(authenticationManager.authenticate(
+                any(Authentication.class)
+        )).thenReturn(authentication);
+
         when(jwtService.generateToken(authentication))
                 .thenReturn("signed-jwt-token");
+
         when(jwtService.getExpirationSeconds())
                 .thenReturn(1800L);
 
@@ -68,15 +72,27 @@ class AuthControllerTest {
 
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
+
         assertEquals(
                 "signed-jwt-token",
                 response.getBody().accessToken()
         );
-        assertEquals("Bearer", response.getBody().tokenType());
-        assertEquals(1800L, response.getBody().expiresIn());
 
-        verify(gymCrmMetrics).incrementLoginSuccess();
-        verify(gymCrmMetrics, never()).incrementLoginFailure();
+        assertEquals(
+                "Bearer",
+                response.getBody().tokenType()
+        );
+
+        assertEquals(
+                1800L,
+                response.getBody().expiresIn()
+        );
+
+        verify(gymCrmMetrics)
+                .incrementLoginSuccess();
+
+        verify(gymCrmMetrics, never())
+                .incrementLoginFailure();
     }
 
     @Test
@@ -84,79 +100,184 @@ class AuthControllerTest {
         LoginRequest request =
                 new LoginRequest("bad", "wrong");
 
-        when(authenticationManager.authenticate(any(Authentication.class)))
-                .thenThrow(new BadCredentialsException("Bad credentials"));
+        when(authenticationManager.authenticate(
+                any(Authentication.class)
+        )).thenThrow(
+                new BadCredentialsException("Bad credentials")
+        );
 
         assertThrows(
                 AuthenticationException.class,
                 () -> authController.login(request)
         );
 
-        verify(gymCrmMetrics).incrementLoginFailure();
-        verify(gymCrmMetrics, never()).incrementLoginSuccess();
-        verify(jwtService, never()).generateToken(any());
+        verify(gymCrmMetrics)
+                .incrementLoginFailure();
+
+        verify(gymCrmMetrics, never())
+                .incrementLoginSuccess();
+
+        verify(jwtService, never())
+                .generateToken(any());
     }
 
-
     @Test
-    void changePasswordShouldChangeTraineePasswordWhenTraineeCredentialsAreValid() {
-        ChangePasswordRequest request = new ChangePasswordRequest();
-        setField(request, "username", "John.Smith");
+    void changePasswordShouldUseAuthenticatedTraineeUsername() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
+        ChangePasswordRequest request =
+                new ChangePasswordRequest();
+
+        // The controller must ignore this username.
+        setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
 
-        when(gymFacade.isTraineeCredentialsValid("John.Smith", "oldPass"))
-                .thenReturn(true);
+        when(gymFacade.isTraineeCredentialsValid(
+                "John.Smith",
+                "oldPass"
+        )).thenReturn(true);
 
-        ResponseEntity<Void> response = authController.changePassword(request);
+        ResponseEntity<Void> response =
+                authController.changePassword(
+                        authentication,
+                        request
+                );
 
         assertEquals(200, response.getStatusCode().value());
-        verify(gymFacade).changeTraineePassword("John.Smith", "oldPass", "newPass");
-        verify(gymFacade, never()).changeTrainerPassword(anyString(), anyString(), anyString());
+
+        verify(authentication).getName();
+
+        verify(gymFacade).changeTraineePassword(
+                "John.Smith",
+                "oldPass",
+                "newPass"
+        );
+
+        verify(gymFacade, never())
+                .changeTrainerPassword(
+                        anyString(),
+                        anyString(),
+                        anyString()
+                );
     }
 
     @Test
-    void changePasswordShouldChangeTrainerPasswordWhenTrainerCredentialsAreValid() {
-        ChangePasswordRequest request = new ChangePasswordRequest();
-        setField(request, "username", "Mike.Brown");
+    void changePasswordShouldUseAuthenticatedTrainerUsername() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("Mike.Brown");
+
+        ChangePasswordRequest request =
+                new ChangePasswordRequest();
+
+        // The controller must ignore this username.
+        setField(request, "username", "Other.User");
         setField(request, "oldPassword", "oldPass");
         setField(request, "newPassword", "newPass");
 
-        when(gymFacade.isTraineeCredentialsValid("Mike.Brown", "oldPass"))
-                .thenReturn(false);
-        when(gymFacade.isTrainerCredentialsValid("Mike.Brown", "oldPass"))
-                .thenReturn(true);
+        when(gymFacade.isTraineeCredentialsValid(
+                "Mike.Brown",
+                "oldPass"
+        )).thenReturn(false);
 
-        ResponseEntity<Void> response = authController.changePassword(request);
+        when(gymFacade.isTrainerCredentialsValid(
+                "Mike.Brown",
+                "oldPass"
+        )).thenReturn(true);
+
+        ResponseEntity<Void> response =
+                authController.changePassword(
+                        authentication,
+                        request
+                );
 
         assertEquals(200, response.getStatusCode().value());
-        verify(gymFacade).changeTrainerPassword("Mike.Brown", "oldPass", "newPass");
-        verify(gymFacade, never()).changeTraineePassword(anyString(), anyString(), anyString());
+
+        verify(authentication).getName();
+
+        verify(gymFacade).changeTrainerPassword(
+                "Mike.Brown",
+                "oldPass",
+                "newPass"
+        );
+
+        verify(gymFacade, never())
+                .changeTraineePassword(
+                        anyString(),
+                        anyString(),
+                        anyString()
+                );
     }
 
     @Test
-    void changePasswordShouldThrowAuthenticationExceptionWhenCredentialsAreInvalid() {
-        ChangePasswordRequest request = new ChangePasswordRequest();
-        setField(request, "username", "bad");
-        setField(request, "oldPassword", "bad");
+    void changePasswordShouldThrowWhenOldPasswordIsInvalid() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
+        ChangePasswordRequest request =
+                new ChangePasswordRequest();
+
+        setField(request, "username", "Other.User");
+        setField(request, "oldPassword", "wrongPass");
         setField(request, "newPassword", "newPass");
 
-        when(gymFacade.isTraineeCredentialsValid("bad", "bad"))
-                .thenReturn(false);
-        when(gymFacade.isTrainerCredentialsValid("bad", "bad"))
-                .thenReturn(false);
+        when(gymFacade.isTraineeCredentialsValid(
+                "John.Smith",
+                "wrongPass"
+        )).thenReturn(false);
+
+        when(gymFacade.isTrainerCredentialsValid(
+                "John.Smith",
+                "wrongPass"
+        )).thenReturn(false);
 
         assertThrows(
                 AuthenticationException.class,
-                () -> authController.changePassword(request)
+                () -> authController.changePassword(
+                        authentication,
+                        request
+                )
         );
+
+        verify(authentication).getName();
+
+        verify(gymFacade, never())
+                .changeTraineePassword(
+                        anyString(),
+                        anyString(),
+                        anyString()
+                );
+
+        verify(gymFacade, never())
+                .changeTrainerPassword(
+                        anyString(),
+                        anyString(),
+                        anyString()
+                );
     }
 
-    private static void setField(Object target, String fieldName, Object value) {
+    private static void setField(
+            Object target,
+            String fieldName,
+            Object value
+    ) {
         try {
-            Field field = target.getClass().getDeclaredField(fieldName);
+            Field field = target.getClass()
+                    .getDeclaredField(fieldName);
+
             field.setAccessible(true);
             field.set(target, value);
+
         } catch (ReflectiveOperationException ex) {
             throw new RuntimeException(ex);
         }

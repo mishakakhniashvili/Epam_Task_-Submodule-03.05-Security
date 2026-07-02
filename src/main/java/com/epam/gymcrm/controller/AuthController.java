@@ -96,31 +96,48 @@ public class AuthController {
 
 
     @PutMapping("/password")
-    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request){
-        LOGGER.info("changePassword request received for username={}", request.getUsername());
+    public ResponseEntity<Void> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        String username = authentication.getName();
 
-        String newPassword = request.getNewPassword();
-        String oldPassword = request.getOldPassword();
-        String username = request.getUsername();
+        LOGGER.info(
+                "Password change request received for username={}",
+                username
+        );
 
-        boolean traineeValid = gymFacade.isTraineeCredentialsValid(username, oldPassword);
-        if (traineeValid) {
-            gymFacade.changeTraineePassword(username, oldPassword, newPassword);
+        if (gymFacade.isTraineeCredentialsValid(
+                username,
+                request.getOldPassword()
+        )) {
+            gymFacade.changeTraineePassword(
+                    username,
+                    request.getOldPassword(),
+                    request.getNewPassword()
+            );
 
-            LOGGER.info("password changed for username={}", username);
+        } else if (gymFacade.isTrainerCredentialsValid(
+                username,
+                request.getOldPassword()
+        )) {
+            gymFacade.changeTrainerPassword(
+                    username,
+                    request.getOldPassword(),
+                    request.getNewPassword()
+            );
 
-            return ResponseEntity.ok().build();
+        } else {
+            throw new AuthenticationException(
+                    "Invalid credentials"
+            );
         }
 
-        boolean trainerValid = gymFacade.isTrainerCredentialsValid(username, oldPassword);
-        if (trainerValid) {
-            gymFacade.changeTrainerPassword(username, oldPassword, newPassword);
+        LOGGER.info(
+                "Password successfully changed for username={}",
+                username
+        );
 
-            LOGGER.info("password changed for username={}", username);
-
-            return ResponseEntity.ok().build();
-        }
-
-        throw new AuthenticationException("Invalid credentials");
+        return ResponseEntity.ok().build();
     }
 }
