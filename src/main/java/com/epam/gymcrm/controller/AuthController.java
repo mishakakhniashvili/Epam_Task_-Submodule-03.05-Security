@@ -1,13 +1,19 @@
 package com.epam.gymcrm.controller;
 
 import com.epam.gymcrm.dto.ChangePasswordRequest;
+import com.epam.gymcrm.dto.LoginRequest;
+import com.epam.gymcrm.dto.TokenResponse;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.security.JwtService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -24,9 +30,20 @@ public class AuthController {
 
     private final GymFacade gymFacade;
 
-    public AuthController(GymFacade gymFacade, GymCrmMetrics gymCrmMetrics) {
+    private final AuthenticationManager authenticationManager;
+
+    private final JwtService jwtService;
+
+    public AuthController(
+            GymFacade gymFacade,
+            GymCrmMetrics gymCrmMetrics,
+            AuthenticationManager authenticationManager,
+            JwtService jwtService
+    ) {
         this.gymFacade = gymFacade;
         this.gymCrmMetrics = gymCrmMetrics;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
     }
 
     @ApiOperation("Login user")
@@ -34,31 +51,50 @@ public class AuthController {
             @ApiResponse(code = 200, message = "Login successful"),
             @ApiResponse(code = 401, message = "Invalid credentials")
     })
-    @GetMapping("/login")
-    public ResponseEntity<Void> login(
-            @RequestParam String username,
-            @RequestParam String password
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(
+            @Valid @RequestBody LoginRequest request
     ) {
-        LOGGER.info("Login request received for username={}", username);
+        LOGGER.info(
+                "Login request received for username={}",
+                request.username()
+        );
 
-        boolean traineeValid = gymFacade.isTraineeCredentialsValid(username, password);
-        boolean trainerValid = gymFacade.isTrainerCredentialsValid(username, password);
+        try {
+            Authentication authentication =
+                    authenticationManager.authenticate(
+                            new UsernamePasswordAuthenticationToken(
+                                    request.username(),
+                                    request.password()
+                            )
+                    );
 
-        if (!traineeValid && !trainerValid) {
+            String token = jwtService.generateToken(authentication);
+
+            gymCrmMetrics.incrementLoginSuccess();
+
+            TokenResponse response = new TokenResponse(
+                    token,
+                    "Bearer",
+                    jwtService.getExpirationSeconds()
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (org.springframework.security.core.AuthenticationException ex) {
             gymCrmMetrics.incrementLoginFailure();
+
+            LOGGER.warn(
+                    "Login failed for username={}",
+                    request.username()
+            );
+
             throw new AuthenticationException("Invalid credentials");
         }
-
-        gymCrmMetrics.incrementLoginSuccess();
-        return ResponseEntity.ok().build();
     }
 
-    @ApiOperation("Change user password")
-    @ApiResponses({
-            @ApiResponse(code = 200, message = "Password changed successfully"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Invalid credentials")
-    })
+
+
     @PutMapping("/password")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request){
         LOGGER.info("changePassword request received for username={}", request.getUsername());

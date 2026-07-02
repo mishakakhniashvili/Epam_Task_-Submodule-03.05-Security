@@ -62,56 +62,30 @@ class TrainingControllerTest {
     }
 
     @Test
-    void getTrainingTypesShouldReturnTypesWhenTraineeCredentialsAreValid() {
+    void getTrainingTypesShouldReturnTrainingTypes() {
         TrainingType fitness = new TrainingType("Fitness");
         fitness.setId(1L);
 
-        when(gymFacade.isTraineeCredentialsValid("John.Smith", "pass123"))
-                .thenReturn(true);
-        when(gymFacade.getTrainingTypes()).thenReturn(List.of(fitness));
+        when(gymFacade.getTrainingTypes())
+                .thenReturn(List.of(fitness));
 
         ResponseEntity<List<TrainingTypeResponse>> response =
-                trainingController.getTrainingTypes("John.Smith", "pass123");
+                trainingController.getTrainingTypes();
 
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals(1L, response.getBody().get(0).getId());
-        assertEquals("Fitness", response.getBody().get(0).getTrainingTypeName());
-    }
-
-    @Test
-    void getTrainingTypesShouldReturnTypesWhenTrainerCredentialsAreValid() {
-        TrainingType yoga = new TrainingType("Yoga");
-        yoga.setId(2L);
-
-        when(gymFacade.isTraineeCredentialsValid("Mike.Brown", "pass123"))
-                .thenReturn(false);
-        when(gymFacade.isTrainerCredentialsValid("Mike.Brown", "pass123"))
-                .thenReturn(true);
-        when(gymFacade.getTrainingTypes()).thenReturn(List.of(yoga));
-
-        ResponseEntity<List<TrainingTypeResponse>> response =
-                trainingController.getTrainingTypes("Mike.Brown", "pass123");
-
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(2L, response.getBody().get(0).getId());
-        assertEquals("Yoga", response.getBody().get(0).getTrainingTypeName());
-    }
-
-    @Test
-    void getTrainingTypesShouldThrowAuthenticationExceptionWhenCredentialsAreInvalid() {
-        when(gymFacade.isTraineeCredentialsValid("bad", "bad"))
-                .thenReturn(false);
-        when(gymFacade.isTrainerCredentialsValid("bad", "bad"))
-                .thenReturn(false);
-
-        assertThrows(
-                AuthenticationException.class,
-                () -> trainingController.getTrainingTypes("bad", "bad")
+        assertEquals(
+                "Fitness",
+                response.getBody().get(0).getTrainingTypeName()
         );
+
+        verify(gymFacade).getTrainingTypes();
+        verify(gymFacade, never())
+                .isTraineeCredentialsValid(anyString(), anyString());
+        verify(gymFacade, never())
+                .isTrainerCredentialsValid(anyString(), anyString());
     }
 
     private static void setField(Object target, String fieldName, Object value) {

@@ -3,7 +3,6 @@ package com.epam.gymcrm.controller;
 import com.epam.gymcrm.dto.AddTrainingRequest;
 import com.epam.gymcrm.dto.TrainingTypeResponse;
 import com.epam.gymcrm.entity.TrainingType;
-import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
@@ -59,17 +58,8 @@ public class TrainingController {
             @ApiResponse(code = 401, message = "Invalid credentials")
     })
     @GetMapping("/training-types")
-    public ResponseEntity<List<TrainingTypeResponse>> getTrainingTypes(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
+    public ResponseEntity<List<TrainingTypeResponse>> getTrainingTypes(){
 
-        boolean validTrainee = gymFacade.isTraineeCredentialsValid(username, password);
-        boolean validTrainer = gymFacade.isTrainerCredentialsValid(username, password);
-
-        if (!validTrainee && !validTrainer) {
-            throw new AuthenticationException("Authentication Failed");
-        }
 
         List<TrainingType> trainingTypes = gymFacade.getTrainingTypes();
 

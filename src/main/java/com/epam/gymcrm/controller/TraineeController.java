@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -82,14 +83,13 @@ public class TraineeController {
                 request.getAddress()
         );
 
-        RegistrationResult registration =
-                gymFacade.createTrainee(trainee);
+        RegistrationResult createdTrainee = gymFacade.createTrainee(trainee);
 
         gymCrmMetrics.incrementTraineeRegistrations();
 
         RegistrationResponse response = new RegistrationResponse(
-                registration.username(),
-                registration.rawPassword()
+                createdTrainee.username(),
+                createdTrainee.rawPassword()
         );
 
         LOGGER.info("Trainee registered successfully with username={}", response.getUsername());
@@ -105,18 +105,24 @@ public class TraineeController {
     })
     @GetMapping("/profile")
     public ResponseEntity<TraineeProfileResponse> getTraineeProfile(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee profile request received for username={}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        Trainee trainee = gymFacade.findTraineeByUsername(username, password, username).orElseThrow(
-                () -> new EntityNotFoundException("Trainee" , username)
+        LOGGER.info(
+                "Trainee profile request received for username={}",
+                username
         );
 
-        TraineeProfileResponse response = traineeMapper.toProfileResponse(trainee);
-        LOGGER.info("Trainee profile successfully retrieved for username={}", username);
-        return ResponseEntity.ok(response);
+        Trainee trainee = gymFacade
+                .findTraineeByUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Trainee", username)
+                );
+
+        return ResponseEntity.ok(
+                traineeMapper.toProfileResponse(trainee)
+        );
     }
 
     @ApiOperation("Update trainee profile")
@@ -128,13 +134,13 @@ public class TraineeController {
     })
     @PutMapping("/profile")
     public ResponseEntity<TraineeProfileResponse> updateTraineeProfile(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody TraineeUpdateRequest request
-            ){
+    ) {
+        String username = authentication.getName();
         LOGGER.info("Trainee profile update request received for username={}", request.getUsername());
         Trainee trainee = gymFacade.updateProfile(
-                request.getUsername(),
-                password,
+                username,
                 request.getFirstName(),
                 request.getLastName(),
                 request.getDateOfBirth(),
@@ -156,14 +162,11 @@ public class TraineeController {
     })
     @DeleteMapping("/profile")
     public ResponseEntity<Void> deleteTraineeProfile(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee profile delete request received for username={}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        gymFacade.deleteTraineeByUsername(username, password);
-
-        LOGGER.info("Trainee profile successfully deleted for username={}", username);
+        gymFacade.deleteTraineeByUsername(username);
 
         return ResponseEntity.ok().build();
     }
@@ -177,19 +180,16 @@ public class TraineeController {
     })
     @PatchMapping("/status")
     public ResponseEntity<Void> updateTraineeStatus(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody ActivationRequest request
-    ){
-        LOGGER.info("Trainee status update request received for username={}", request.getUsername());
+    ) {
+        String username = authentication.getName();
 
-        if(request.getActive()){
-            gymFacade.activateTrainee(request.getUsername(),  password);
+        if (request.getActive()) {
+            gymFacade.activateTrainee(username);
+        } else {
+            gymFacade.deactivateTrainee(username);
         }
-        else{
-            gymFacade.deactivateTrainee(request.getUsername(), password);
-        }
-
-        LOGGER.info("Trainee status successfully updated for username={}", request.getUsername());
 
         return ResponseEntity.ok().build();
     }

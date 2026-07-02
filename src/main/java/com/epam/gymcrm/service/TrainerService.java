@@ -123,6 +123,14 @@ public class TrainerService {
         return trainerRepository.findByUserUsername(targetUsername);
     }
 
+    public Optional<Trainer> findByUsername(String username) {
+        validateRequiredString(username, "username");
+
+        LOGGER.info("Finding trainer with username={}", username);
+
+        return trainerRepository.findByUserUsername(username);
+    }
+
 
     public boolean isCredentialsValid(String username, String password) {
         return trainerRepository.findByUserUsername(username)
@@ -155,7 +163,21 @@ public class TrainerService {
     @Transactional
     public void activate(String username, String password){
         validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
+        if(trainer.getUser().isActive()){
+            throw new IllegalStateException("Trainer is already active.");}
+        trainer.getUser().setActive(true);
+        trainerRepository.save(trainer);
+        LOGGER.info("Activated trainer with id={}", trainer.getId());
+    }
+
+    @Transactional
+    public void activate(String username){
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
         if(trainer.getUser().isActive()){
             throw new IllegalStateException("Trainer is already active.");}
         trainer.getUser().setActive(true);
@@ -166,13 +188,28 @@ public class TrainerService {
     @Transactional
     public void deactivate(String username, String password){
         validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
         if(!trainer.getUser().isActive()){
             throw new IllegalStateException("Trainer is already inactive.");}
         trainer.getUser().setActive(false);
         trainerRepository.save(trainer);
         LOGGER.info("Deactivated trainer with id={}", trainer.getId());
     }
+
+    @Transactional
+    public void deactivate(String username){
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
+        if(!trainer.getUser().isActive()){
+            throw new IllegalStateException("Trainer is already inactive.");}
+        trainer.getUser().setActive(false);
+        trainerRepository.save(trainer);
+        LOGGER.info("Deactivated trainer with id={}", trainer.getId());
+    }
+
 
     private void validateTrainerRequiredFields(Trainer trainer) {
         if (trainer == null) {
@@ -241,6 +278,34 @@ public class TrainerService {
                 () -> new EntityNotFoundException("trainer", username)
         );
 
+
+        trainer.getUser().setFirstName(firstName);
+        trainer.getUser().setLastName(lastName);
+        trainer.getUser().setActive(active);
+
+        return trainerRepository.save(trainer);
+    }
+
+    @Transactional
+    public Trainer updateProfile(
+            String username,
+            String firstName,
+            String lastName,
+            Boolean active
+    ) {
+        validateRequiredString(username, "username");
+        validateRequiredString(firstName, "firstName");
+        validateRequiredString(lastName, "lastName");
+
+        if (active == null) {
+            throw new ValidationException("active cannot be null");
+        }
+
+        Trainer trainer = trainerRepository
+                .findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainer", username)
+                );
 
         trainer.getUser().setFirstName(firstName);
         trainer.getUser().setLastName(lastName);

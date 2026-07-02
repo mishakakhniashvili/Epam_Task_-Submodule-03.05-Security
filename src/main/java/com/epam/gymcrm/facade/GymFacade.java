@@ -58,6 +58,14 @@ public class GymFacade {
         return trainerService.findByUsername(authUsername, authPassword, targetUsername);
     }
 
+    public Optional<Trainee> findTraineeByUsername(String username) {
+        return traineeService.findByUsername(username);
+    }
+
+    public Optional<Trainer> findTrainerByUsername(String username) {
+        return trainerService.findByUsername(username);
+    }
+
     public boolean isTraineeCredentialsValid(String username, String password) {
         return traineeService.isCredentialsValid(username, password);
     }
@@ -172,6 +180,23 @@ public class GymFacade {
                 username, password, firstName, lastName, dateOfBirth, address, active
         );
     }
+    public Trainee updateProfile(
+            String username,
+            String firstName,
+            String lastName,
+            LocalDate dateOfBirth,
+            String address,
+            Boolean active
+    ) {
+        return traineeService.updateProfile(
+                username,
+                firstName,
+                lastName,
+                dateOfBirth,
+                address,
+                active
+        );
+    }
 
     public Trainer updateProfile(
             String username,
@@ -182,6 +207,40 @@ public class GymFacade {
         return trainerService.updateProfile(
                 username, password, firstName, lastName, active
         );
+    }
+
+    public Trainer updateProfile(
+            String username,
+            String firstName,
+            String lastName,
+            Boolean active
+    ) {
+        return trainerService.updateProfile(
+                username,
+                firstName,
+                lastName,
+                active
+        );
+    }
+
+    public void deleteTraineeByUsername(String username) {
+        traineeService.deleteByUsername(username);
+    }
+
+    public void activateTrainee(String username) {
+        traineeService.activate(username);
+    }
+
+    public void deactivateTrainee(String username) {
+        traineeService.deactivate(username);
+    }
+
+    public void activateTrainer(String username) {
+        trainerService.activate(username);
+    }
+
+    public void deactivateTrainer(String username) {
+        trainerService.deactivate(username);
     }
 
     public List<TrainingType> getTrainingTypes() {

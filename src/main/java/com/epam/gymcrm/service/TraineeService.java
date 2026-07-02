@@ -128,6 +128,14 @@ public class TraineeService {
         return traineeRepository.findByUserUsername(targetUsername);
     }
 
+    public Optional<Trainee> findByUsername(String username) {
+        validateRequiredString(username, "username");
+
+        LOGGER.info("Finding trainee with username={}", username);
+
+        return traineeRepository.findByUserUsername(username);
+    }
+
     public boolean isCredentialsValid(String username, String password) {
         return traineeRepository.findByUserUsername(username)
                 .map(trainee -> passwordEncoder.matches(
@@ -160,9 +168,26 @@ public class TraineeService {
     public void activate(String username, String password){
         validateCredentials(username, password);
         Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
-        if(trainee.getUser().isActive()){throw new IllegalStateException("Traineeis already active.");}
+        if(trainee.getUser().isActive()){throw new IllegalStateException("Trainee is already active.");}
         trainee.getUser().setActive(true);
         traineeRepository.save(trainee);
+        LOGGER.info("Activated trainee with id={}", trainee.getId());
+    }
+
+    @Transactional
+    public void activate(String username) {
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
+
+        if (trainee.getUser().isActive()) {
+            throw new IllegalStateException("Trainee is already active.");
+        }
+
+        trainee.getUser().setActive(true);
+        traineeRepository.save(trainee);
+
         LOGGER.info("Activated trainee with id={}", trainee.getId());
     }
 
@@ -177,8 +202,33 @@ public class TraineeService {
     }
 
     @Transactional
+    public void deactivate(String username) {
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
+
+        if (!trainee.getUser().isActive()) {
+            throw new IllegalStateException("Trainee is already inactive.");
+        }
+
+        trainee.getUser().setActive(false);
+        traineeRepository.save(trainee);
+
+        LOGGER.info("Deactivated trainee with id={}", trainee.getId());
+    }
+
+    @Transactional
     public void deleteByUsername(String username, String password){
         validateCredentials(username, password);
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("trainee", username));
+        traineeRepository.deleteById(trainee.getId());
+        LOGGER.info("Deleted trainee with id={}", trainee.getId());
+    }
+
+    @Transactional
+    public void deleteByUsername(String username){
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", username));
         traineeRepository.deleteById(trainee.getId());
@@ -275,4 +325,36 @@ public class TraineeService {
         return traineeRepository.save(trainee);
     }
 
+
+    @Transactional
+    public Trainee updateProfile(
+            String username,
+            String firstName,
+            String lastName,
+            LocalDate dateOfBirth,
+            String address,
+            Boolean active
+    ) {
+        validateRequiredString(username, "username");
+        validateRequiredString(firstName, "firstName");
+        validateRequiredString(lastName, "lastName");
+
+        if (active == null) {
+            throw new ValidationException("active cannot be null");
+        }
+
+        Trainee trainee = traineeRepository
+                .findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
+
+        trainee.getUser().setFirstName(firstName);
+        trainee.getUser().setLastName(lastName);
+        trainee.getUser().setActive(active);
+        trainee.setDateOfBirth(dateOfBirth);
+        trainee.setAddress(address);
+
+        return traineeRepository.save(trainee);
+    }
 }

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -92,19 +93,24 @@ public class TrainerController {
     })
     @GetMapping("/profile")
     public ResponseEntity<TrainerProfileResponse> getTrainerProfile(
-            @RequestParam String username,
-            @RequestParam String password){
-        LOGGER.info("trainer profile request for username={}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        Trainer trainer = gymFacade.findTrainerByUsername(username, password, username).orElseThrow(
-                () -> new EntityNotFoundException("Trainer", username)
+        LOGGER.info(
+                "Trainer profile request received for username={}",
+                username
         );
 
-        TrainerProfileResponse response = trainerMapper.toProfileResponse(trainer);
+        Trainer trainer = gymFacade
+                .findTrainerByUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Trainer", username)
+                );
 
-        LOGGER.info("Trainer profile successfully retrieved for username={}", username);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                trainerMapper.toProfileResponse(trainer)
+        );
     }
 
     @ApiOperation("Update trainer profile")
@@ -116,22 +122,21 @@ public class TrainerController {
     })
     @PutMapping("/profile")
     public ResponseEntity<TrainerProfileResponse> updateTrainerProfile(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody TrainerUpdateRequest request
-    ){
-        LOGGER.info("Trainer profile update request received for username={}", request.getUsername());
+    ) {
+        String username = authentication.getName();
+
         Trainer trainer = gymFacade.updateProfile(
-                request.getUsername(),
-                password,
+                username,
                 request.getFirstName(),
                 request.getLastName(),
                 request.getActive()
         );
-        TrainerProfileResponse response = trainerMapper.toProfileResponse(trainer);
 
-        LOGGER.info("Trainer profile successfully updated for username={}", request.getUsername());
-
-        return  ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                trainerMapper.toProfileResponse(trainer)
+        );
     }
 
 
@@ -144,19 +149,16 @@ public class TrainerController {
     })
     @PatchMapping("/status")
     public ResponseEntity<Void> updateTrainerStatus(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody ActivationRequest request
-    ){
-        LOGGER.info("Trainer status update request received for username={}", request.getUsername());
+    ) {
+        String username = authentication.getName();
 
-        if(request.getActive()){
-            gymFacade.activateTrainer(request.getUsername(),  password);
+        if (request.getActive()) {
+            gymFacade.activateTrainer(username);
+        } else {
+            gymFacade.deactivateTrainer(username);
         }
-        else{
-            gymFacade.deactivateTrainer(request.getUsername(), password);
-        }
-
-        LOGGER.info("Trainer status successfully updated for username={}", request.getUsername());
 
         return ResponseEntity.ok().build();
     }
