@@ -100,14 +100,6 @@ public class TraineeService {
     }
 
     @Transactional
-    public Trainee update(String username, String password, Trainee trainee) {
-        validateCredentials(username, password);
-        validateTraineeRequiredFields(trainee);
-        LOGGER.info("Updating trainee with id={}", trainee.getId());
-        return traineeRepository.save(trainee);
-    }
-
-    @Transactional
     public void deleteById(Long id) {
         LOGGER.info("Deleting trainee with id={}", id);
         traineeRepository.deleteById(id);
@@ -120,12 +112,6 @@ public class TraineeService {
 
     public List<Trainee> findAll() {
         return traineeRepository.findAll();
-    }
-
-    public Optional<Trainee> findByUsername(String authUsername, String authPassword, String targetUsername) {
-        validateCredentials(authUsername, authPassword);
-        LOGGER.info("Finding trainee with username={}", targetUsername);
-        return traineeRepository.findByUserUsername(targetUsername);
     }
 
     public Optional<Trainee> findByUsername(String username) {
@@ -165,16 +151,6 @@ public class TraineeService {
     }
 
     @Transactional
-    public void activate(String username, String password){
-        validateCredentials(username, password);
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
-        if(trainee.getUser().isActive()){throw new IllegalStateException("Trainee is already active.");}
-        trainee.getUser().setActive(true);
-        traineeRepository.save(trainee);
-        LOGGER.info("Activated trainee with id={}", trainee.getId());
-    }
-
-    @Transactional
     public void activate(String username) {
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() ->
@@ -189,16 +165,6 @@ public class TraineeService {
         traineeRepository.save(trainee);
 
         LOGGER.info("Activated trainee with id={}", trainee.getId());
-    }
-
-    @Transactional
-    public void deactivate(String username, String password){
-        validateCredentials(username, password);
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
-        if(!trainee.getUser().isActive()){throw new IllegalStateException("Trainee is already inactive.");}
-        trainee.getUser().setActive(false);
-        traineeRepository.save(trainee);
-        LOGGER.info("Deactivated trainee with id={}", trainee.getId());
     }
 
     @Transactional
@@ -219,15 +185,6 @@ public class TraineeService {
     }
 
     @Transactional
-    public void deleteByUsername(String username, String password){
-        validateCredentials(username, password);
-        Trainee trainee = traineeRepository.findByUserUsername(username)
-                .orElseThrow(() -> new EntityNotFoundException("trainee", username));
-        traineeRepository.deleteById(trainee.getId());
-        LOGGER.info("Deleted trainee with id={}", trainee.getId());
-    }
-
-    @Transactional
     public void deleteByUsername(String username){
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", username));
@@ -236,47 +193,8 @@ public class TraineeService {
     }
 
     @Transactional(readOnly = true)
-    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername, String traineePassword){
-        validateCredentials(traineeUsername, traineePassword);
-        return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
-    }
-
-    @Transactional(readOnly = true)
     public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername){
         return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
-    }
-
-    @Transactional
-    public Trainee updateTraineeTrainersList(
-            String traineeUsername,
-            String traineePassword,
-            List<String> trainerUsernames
-    ) {
-        validateCredentials(traineeUsername, traineePassword);
-
-        Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
-                .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
-
-        if (trainerUsernames == null) {
-            throw new ValidationException("Trainer usernames cannot be null");
-        }
-
-        Set<Trainer> trainers = new HashSet<>();
-
-        for (String trainerUsername : trainerUsernames) {
-            if (trainerUsername == null || trainerUsername.isBlank()) {
-                throw new ValidationException("Trainer username cannot be blank");
-            }
-
-            Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
-                    .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
-
-            trainers.add(trainer);
-        }
-
-        trainee.setTrainers(trainers);
-
-        return traineeRepository.save(trainee);
     }
 
     @Transactional
@@ -327,39 +245,6 @@ public class TraineeService {
             throw new ValidationException(fieldName + " cannot be null or blank");
         }
     }
-
-    @Transactional
-    public Trainee updateProfile(
-            String username,
-            String password,
-            String firstName,
-            String lastName,
-            LocalDate dateOfBirth,
-            String address,
-            Boolean active)
-    {
-        validateRequiredString(username, "username");
-        validateRequiredString(password, "password");
-        validateRequiredString(firstName, "firstName");
-        validateRequiredString(lastName, "lastName");
-        validateCredentials(username, password);
-        if (active == null) {
-            throw new ValidationException("active cannot be null");
-        }
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow(
-                () -> new EntityNotFoundException("trainee", username)
-        );
-
-
-        trainee.getUser().setFirstName(firstName);
-        trainee.getUser().setLastName(lastName);
-        trainee.getUser().setActive(active);
-        trainee.setDateOfBirth(dateOfBirth);
-        trainee.setAddress(address);
-
-        return traineeRepository.save(trainee);
-    }
-
 
     @Transactional
     public Trainee updateProfile(

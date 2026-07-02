@@ -84,14 +84,6 @@ public class TrainerService {
         );
     }
 
-    @Transactional
-    public Trainer update(String username, String password, Trainer trainer) {
-        validateCredentials(username, password);
-        validateTrainerRequiredFields(trainer);
-        LOGGER.info("Updating trainer with id={}", trainer.getId());
-        return trainerRepository.save(trainer);
-    }
-
     public Optional<Trainer> findById(Long id) {
 
         LOGGER.info("Finding trainer with id={}", id);
@@ -103,7 +95,6 @@ public class TrainerService {
         return trainerRepository.findAll();
     }
 
-    //finds every existing username and generates a new one according to the rules
     private String generateUsername(Trainer trainer) {
         User user = trainer.getUser();
         List<String> existingUsernames = userRepository.findAllUsernames();
@@ -113,14 +104,6 @@ public class TrainerService {
                 user.getLastName(),
                 existingUsernames
         );
-    }
-
-
-
-    public Optional<Trainer> findByUsername(String authUsername, String authPassword, String targetUsername) {
-        validateCredentials(authUsername, authPassword);
-        LOGGER.info("Finding trainer with username={}", targetUsername);
-        return trainerRepository.findByUserUsername(targetUsername);
     }
 
     public Optional<Trainer> findByUsername(String username) {
@@ -159,20 +142,6 @@ public class TrainerService {
         LOGGER.info("Changed password for username={}", username);
     }
 
-
-    @Transactional
-    public void activate(String username, String password){
-        validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
-                new EntityNotFoundException("trainer", username)
-        );
-        if(trainer.getUser().isActive()){
-            throw new IllegalStateException("Trainer is already active.");}
-        trainer.getUser().setActive(true);
-        trainerRepository.save(trainer);
-        LOGGER.info("Activated trainer with id={}", trainer.getId());
-    }
-
     @Transactional
     public void activate(String username){
         Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
@@ -183,19 +152,6 @@ public class TrainerService {
         trainer.getUser().setActive(true);
         trainerRepository.save(trainer);
         LOGGER.info("Activated trainer with id={}", trainer.getId());
-    }
-
-    @Transactional
-    public void deactivate(String username, String password){
-        validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
-                new EntityNotFoundException("trainer", username)
-        );
-        if(!trainer.getUser().isActive()){
-            throw new IllegalStateException("Trainer is already inactive.");}
-        trainer.getUser().setActive(false);
-        trainerRepository.save(trainer);
-        LOGGER.info("Deactivated trainer with id={}", trainer.getId());
     }
 
     @Transactional
@@ -256,34 +212,6 @@ public class TrainerService {
         );
 
         return create(trainer);
-    }
-
-    @Transactional
-    public Trainer updateProfile(
-            String username,
-            String password,
-            String firstName,
-            String lastName,
-            Boolean active)
-    {
-        validateRequiredString(username, "username");
-        validateRequiredString(password, "password");
-        validateRequiredString(firstName, "firstName");
-        validateRequiredString(lastName, "lastName");
-        validateCredentials(username, password);
-        if (active == null) {
-            throw new ValidationException("active cannot be null");
-        }
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(
-                () -> new EntityNotFoundException("trainer", username)
-        );
-
-
-        trainer.getUser().setFirstName(firstName);
-        trainer.getUser().setLastName(lastName);
-        trainer.getUser().setActive(active);
-
-        return trainerRepository.save(trainer);
     }
 
     @Transactional
