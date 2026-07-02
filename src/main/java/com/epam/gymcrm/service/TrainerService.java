@@ -1,6 +1,5 @@
 package com.epam.gymcrm.service;
 
-import com.epam.gymcrm.entity.Trainee;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
@@ -13,10 +12,10 @@ import com.epam.gymcrm.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +29,7 @@ public class TrainerService {
     private PasswordGenerator passwordGenerator;
     private UserRepository userRepository;
     private TrainingTypeRepository trainingTypeRepository;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public void setTrainerRepository(TrainerRepository trainerRepository) {
@@ -56,14 +56,21 @@ public class TrainerService {
         this.trainingTypeRepository = trainingTypeRepository;
     }
 
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+
     @Transactional
-    public Trainer create(Trainer trainer) {
+    public RegistrationResult create(Trainer trainer) {
         validateTrainerRequiredFields(trainer);
         User user = trainer.getUser();
+        String rawPassword = passwordGenerator.generatePassword();
         String username = generateUsername(trainer);
 
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setUsername(username);
-        user.setPassword(passwordGenerator.generatePassword());
         user.setActive(true);
 
         Trainer createdTrainer = trainerRepository.save(trainer);
@@ -71,15 +78,10 @@ public class TrainerService {
                 createdTrainer.getId(),
                 createdTrainer.getUser().getUsername());
 
-        return createdTrainer;
-    }
-
-    @Transactional
-    public Trainer update(String username, String password, Trainer trainer) {
-        validateCredentials(username, password);
-        validateTrainerRequiredFields(trainer);
-        LOGGER.info("Updating trainer with id={}", trainer.getId());
-        return trainerRepository.save(trainer);
+        return new RegistrationResult(
+                createdTrainer.getUser().getUsername(),
+                rawPassword
+        );
     }
 
     public Optional<Trainer> findById(Long id) {
@@ -93,7 +95,6 @@ public class TrainerService {
         return trainerRepository.findAll();
     }
 
-    //finds every existing username and generates a new one according to the rules
     private String generateUsername(Trainer trainer) {
         User user = trainer.getUser();
         List<String> existingUsernames = userRepository.findAllUsernames();
@@ -105,18 +106,21 @@ public class TrainerService {
         );
     }
 
+    public Optional<Trainer> findByUsername(String username) {
+        validateRequiredString(username, "username");
 
+        LOGGER.info("Finding trainer with username={}", username);
 
-    public Optional<Trainer> findByUsername(String authUsername, String authPassword, String targetUsername) {
-        validateCredentials(authUsername, authPassword);
-        LOGGER.info("Finding trainer with username={}", targetUsername);
-        return trainerRepository.findByUserUsername(targetUsername);
+        return trainerRepository.findByUserUsername(username);
     }
 
 
     public boolean isCredentialsValid(String username, String password) {
         return trainerRepository.findByUserUsername(username)
-                .map(trainer -> trainer.getUser().getPassword().equals(password))
+                .map(trainer -> passwordEncoder.matches(
+                        password,
+                        trainer.getUser().getPassword()
+                ))
                 .orElse(false);
     }
 
@@ -131,18 +135,18 @@ public class TrainerService {
 
         Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
 
-        trainer.getUser().setPassword(newPassword);
+        trainer.getUser().setPassword(passwordEncoder.encode(newPassword));
 
         trainerRepository.save(trainer);
 
         LOGGER.info("Changed password for username={}", username);
     }
 
-
     @Transactional
-    public void activate(String username, String password){
-        validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
+    public void activate(String username){
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
         if(trainer.getUser().isActive()){
             throw new IllegalStateException("Trainer is already active.");}
         trainer.getUser().setActive(true);
@@ -151,15 +155,17 @@ public class TrainerService {
     }
 
     @Transactional
-    public void deactivate(String username, String password){
-        validateCredentials(username, password);
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow();
+    public void deactivate(String username){
+        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(() ->
+                new EntityNotFoundException("trainer", username)
+        );
         if(!trainer.getUser().isActive()){
             throw new IllegalStateException("Trainer is already inactive.");}
         trainer.getUser().setActive(false);
         trainerRepository.save(trainer);
         LOGGER.info("Deactivated trainer with id={}", trainer.getId());
     }
+
 
     private void validateTrainerRequiredFields(Trainer trainer) {
         if (trainer == null) {
@@ -184,7 +190,7 @@ public class TrainerService {
     }
 
     @Transactional
-    public Trainer create( String firstName, String lastName, String specializationName) {
+    public RegistrationResult create( String firstName, String lastName, String specializationName) {
         validateRequiredString(firstName, "firstName");
         validateRequiredString(lastName, "lastName");
         validateRequiredString(specializationName, "specializationName");
@@ -211,23 +217,23 @@ public class TrainerService {
     @Transactional
     public Trainer updateProfile(
             String username,
-            String password,
             String firstName,
             String lastName,
-            Boolean active)
-    {
+            Boolean active
+    ) {
         validateRequiredString(username, "username");
-        validateRequiredString(password, "password");
         validateRequiredString(firstName, "firstName");
         validateRequiredString(lastName, "lastName");
-        validateCredentials(username, password);
+
         if (active == null) {
             throw new ValidationException("active cannot be null");
         }
-        Trainer trainer = trainerRepository.findByUserUsername(username).orElseThrow(
-                () -> new EntityNotFoundException("trainer", username)
-        );
 
+        Trainer trainer = trainerRepository
+                .findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainer", username)
+                );
 
         trainer.getUser().setFirstName(firstName);
         trainer.getUser().setLastName(lastName);

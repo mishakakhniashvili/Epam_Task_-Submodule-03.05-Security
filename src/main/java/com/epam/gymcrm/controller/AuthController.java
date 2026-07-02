@@ -1,13 +1,26 @@
 package com.epam.gymcrm.controller;
 
 import com.epam.gymcrm.dto.ChangePasswordRequest;
+import com.epam.gymcrm.dto.LoginRequest;
+import com.epam.gymcrm.dto.TokenResponse;
 import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.security.JwtService;
+import com.epam.gymcrm.security.LoginAttemptService;
+import com.epam.gymcrm.security.RevokedTokenService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -24,9 +37,32 @@ public class AuthController {
 
     private final GymFacade gymFacade;
 
-    public AuthController(GymFacade gymFacade, GymCrmMetrics gymCrmMetrics) {
+    private final AuthenticationManager authenticationManager;
+
+    private final JwtService jwtService;
+
+    private final LoginAttemptService loginAttemptService;
+
+    private final RevokedTokenService revokedTokenService;
+
+    private final SecurityContextLogoutHandler logoutHandler;
+
+    public AuthController(
+            GymFacade gymFacade,
+            GymCrmMetrics gymCrmMetrics,
+            AuthenticationManager authenticationManager,
+            JwtService jwtService,
+            LoginAttemptService loginAttemptService,
+            RevokedTokenService revokedTokenService,
+            SecurityContextLogoutHandler logoutHandler
+    ) {
         this.gymFacade = gymFacade;
         this.gymCrmMetrics = gymCrmMetrics;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+        this.loginAttemptService = loginAttemptService;
+        this.revokedTokenService = revokedTokenService;
+        this.logoutHandler = logoutHandler;
     }
 
     @ApiOperation("Login user")
@@ -34,57 +70,139 @@ public class AuthController {
             @ApiResponse(code = 200, message = "Login successful"),
             @ApiResponse(code = 401, message = "Invalid credentials")
     })
-    @GetMapping("/login")
-    public ResponseEntity<Void> login(
-            @RequestParam String username,
-            @RequestParam String password
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(
+            @Valid @RequestBody LoginRequest request
     ) {
-        LOGGER.info("Login request received for username={}", username);
+        String username = request.username();
 
-        boolean traineeValid = gymFacade.isTraineeCredentialsValid(username, password);
-        boolean trainerValid = gymFacade.isTrainerCredentialsValid(username, password);
+        LOGGER.info(
+                "Login request received for username={}",
+                username
+        );
 
-        if (!traineeValid && !trainerValid) {
+        if (loginAttemptService.isBlocked(username)) {
             gymCrmMetrics.incrementLoginFailure();
-            throw new AuthenticationException("Invalid credentials");
+
+            LOGGER.warn(
+                    "Login rejected because username={} is temporarily blocked",
+                    username
+            );
+
+            throw new AuthenticationException(
+                    "User is temporarily blocked"
+            );
         }
 
-        gymCrmMetrics.incrementLoginSuccess();
+        try {
+            Authentication authentication =
+                    authenticationManager.authenticate(
+                            new UsernamePasswordAuthenticationToken(
+                                    username,
+                                    request.password()
+                            )
+                    );
+
+            loginAttemptService.loginSucceeded(username);
+
+            String token =
+                    jwtService.generateToken(authentication);
+
+            gymCrmMetrics.incrementLoginSuccess();
+
+            TokenResponse response = new TokenResponse(
+                    token,
+                    "Bearer",
+                    jwtService.getExpirationSeconds()
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (org.springframework.security.core.AuthenticationException ex) {
+            loginAttemptService.loginFailed(username);
+            gymCrmMetrics.incrementLoginFailure();
+
+            LOGGER.warn(
+                    "Login failed for username={}",
+                    username
+            );
+
+            throw new AuthenticationException(
+                    "Invalid credentials"
+            );
+        }
+    }
+
+
+    @PutMapping("/password")
+    public ResponseEntity<Void> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        String username = authentication.getName();
+
+        LOGGER.info(
+                "Password change request received for username={}",
+                username
+        );
+
+        if (gymFacade.isTraineeCredentialsValid(
+                username,
+                request.getOldPassword()
+        )) {
+            gymFacade.changeTraineePassword(
+                    username,
+                    request.getOldPassword(),
+                    request.getNewPassword()
+            );
+
+        } else if (gymFacade.isTrainerCredentialsValid(
+                username,
+                request.getOldPassword()
+        )) {
+            gymFacade.changeTrainerPassword(
+                    username,
+                    request.getOldPassword(),
+                    request.getNewPassword()
+            );
+
+        } else {
+            throw new AuthenticationException(
+                    "Invalid credentials"
+            );
+        }
+
+        LOGGER.info(
+                "Password successfully changed for username={}",
+                username
+        );
+
         return ResponseEntity.ok().build();
     }
 
-    @ApiOperation("Change user password")
-    @ApiResponses({
-            @ApiResponse(code = 200, message = "Password changed successfully"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 401, message = "Invalid credentials")
-    })
-    @PutMapping("/password")
-    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request){
-        LOGGER.info("changePassword request received for username={}", request.getUsername());
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        revokedTokenService.revoke(
+                jwt.getId(),
+                jwt.getExpiresAt()
+        );
 
-        String newPassword = request.getNewPassword();
-        String oldPassword = request.getOldPassword();
-        String username = request.getUsername();
+        logoutHandler.logout(
+                request,
+                response,
+                authentication
+        );
 
-        boolean traineeValid = gymFacade.isTraineeCredentialsValid(username, oldPassword);
-        if (traineeValid) {
-            gymFacade.changeTraineePassword(username, oldPassword, newPassword);
+        LOGGER.info(
+                "User logged out successfully, username={}",
+                authentication.getName()
+        );
 
-            LOGGER.info("password changed for username={}", username);
-
-            return ResponseEntity.ok().build();
-        }
-
-        boolean trainerValid = gymFacade.isTrainerCredentialsValid(username, oldPassword);
-        if (trainerValid) {
-            gymFacade.changeTrainerPassword(username, oldPassword, newPassword);
-
-            LOGGER.info("password changed for username={}", username);
-
-            return ResponseEntity.ok().build();
-        }
-
-        throw new AuthenticationException("Invalid credentials");
+        return ResponseEntity.ok().build();
     }
 }

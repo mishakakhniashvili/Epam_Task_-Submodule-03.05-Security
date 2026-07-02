@@ -3,11 +3,11 @@ package com.epam.gymcrm.controller;
 import com.epam.gymcrm.dto.AddTrainingRequest;
 import com.epam.gymcrm.dto.TrainingTypeResponse;
 import com.epam.gymcrm.entity.TrainingType;
-import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -36,40 +36,33 @@ public class TrainingController {
             @ApiResponse(code = 401, message = "Invalid trainer credentials"),
             @ApiResponse(code = 404, message = "Trainer or trainee not found")
     })
-    @PostMapping("/trainings")
+    @PostMapping
     public ResponseEntity<Void> addTraining(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody AddTrainingRequest request
-    ){
+    ) {
+        String trainerUsername = authentication.getName();
+
         gymFacade.addTraining(
-                request.getTrainerUsername(),
-                password,
+                trainerUsername,
                 request.getTraineeUsername(),
                 request.getTrainingName(),
                 request.getTrainingDate(),
                 request.getTrainingDuration()
         );
+
         gymCrmMetrics.incrementTrainingsCreated();
+
         return ResponseEntity.ok().build();
     }
-
     @ApiOperation("Get training types")
     @ApiResponses({
             @ApiResponse(code = 200, message = "Training types returned successfully"),
             @ApiResponse(code = 401, message = "Invalid credentials")
     })
     @GetMapping("/training-types")
-    public ResponseEntity<List<TrainingTypeResponse>> getTrainingTypes(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
+    public ResponseEntity<List<TrainingTypeResponse>> getTrainingTypes(){
 
-        boolean validTrainee = gymFacade.isTraineeCredentialsValid(username, password);
-        boolean validTrainer = gymFacade.isTrainerCredentialsValid(username, password);
-
-        if (!validTrainee && !validTrainer) {
-            throw new AuthenticationException("Authentication Failed");
-        }
 
         List<TrainingType> trainingTypes = gymFacade.getTrainingTypes();
 

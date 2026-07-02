@@ -13,7 +13,7 @@ import com.epam.gymcrm.repository.TrainingRepository;
 import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,19 +30,22 @@ class TrainingServiceTest {
     private TraineeRepository traineeRepository;
     private TrainerRepository trainerRepository;
     private TrainingTypeRepository trainingTypeRepository;
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
-        trainingRepository = Mockito.mock(TrainingRepository.class);
-        traineeRepository = Mockito.mock(TraineeRepository.class);
-        trainerRepository = Mockito.mock(TrainerRepository.class);
-        trainingTypeRepository = Mockito.mock(TrainingTypeRepository.class);
+        trainingRepository = mock(TrainingRepository.class);
+        traineeRepository = mock(TraineeRepository.class);
+        trainerRepository = mock(TrainerRepository.class);
+        trainingTypeRepository = mock(TrainingTypeRepository.class);
+        passwordEncoder = mock(PasswordEncoder.class);
 
         trainingService = new TrainingService();
         trainingService.setTrainingRepository(trainingRepository);
         trainingService.setTraineeRepository(traineeRepository);
         trainingService.setTrainerRepository(trainerRepository);
         trainingService.setTrainingTypeRepository(trainingTypeRepository);
+        trainingService.setPasswordEncoder(passwordEncoder);
     }
 
     @Test
@@ -50,24 +53,45 @@ class TrainingServiceTest {
         TrainingType fitness = new TrainingType("Fitness");
 
         Trainee trainee = new Trainee(
-                new User("John", "Smith", "John.Smith", "traineePass", true),
+                new User(
+                        "John",
+                        "Smith",
+                        "John.Smith",
+                        "hashed-trainee-pass",
+                        true
+                ),
                 LocalDate.of(2000, 1, 1),
                 "Tbilisi"
         );
 
         Trainer trainer = new Trainer(
-                new User("Mike", "Brown", "Mike.Brown", "trainerPass", true),
+                new User(
+                        "Mike",
+                        "Brown",
+                        "Mike.Brown",
+                        "hashed-trainer-pass",
+                        true
+                ),
                 fitness
         );
 
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
-        when(trainingTypeRepository.findByName("Fitness")).thenReturn(Optional.of(fitness));
-        when(trainingRepository.save(any(Training.class))).thenAnswer(invocation -> {
-            Training training = invocation.getArgument(0);
-            training.setId(1L);
-            return training;
-        });
+        when(trainerRepository.findByUserUsername("Mike.Brown"))
+                .thenReturn(Optional.of(trainer));
+
+        when(passwordEncoder.matches(
+                "trainerPass",
+                "hashed-trainer-pass"
+        )).thenReturn(true);
+
+        when(traineeRepository.findByUserUsername("John.Smith"))
+                .thenReturn(Optional.of(trainee));
+
+        when(trainingRepository.save(any(Training.class)))
+                .thenAnswer(invocation -> {
+                    Training training = invocation.getArgument(0);
+                    training.setId(1L);
+                    return training;
+                });
 
         Training createdTraining = trainingService.addTraining(
                 "Mike.Brown",
@@ -79,14 +103,29 @@ class TrainingServiceTest {
         );
 
         assertEquals(1L, createdTraining.getId());
-        assertEquals("Morning Training", createdTraining.getTrainingName());
-        assertEquals(LocalDate.of(2026, 5, 10), createdTraining.getTrainingDate());
-        assertEquals(60, createdTraining.getTrainingDuration());
+        assertEquals(
+                "Morning Training",
+                createdTraining.getTrainingName()
+        );
+        assertEquals(
+                LocalDate.of(2026, 5, 10),
+                createdTraining.getTrainingDate()
+        );
+        assertEquals(
+                60,
+                createdTraining.getTrainingDuration()
+        );
         assertSame(trainer, createdTraining.getTrainer());
         assertSame(trainee, createdTraining.getTrainee());
         assertSame(fitness, createdTraining.getTrainingType());
 
-        verify(trainingRepository).save(any(Training.class));
+        verify(passwordEncoder).matches(
+                "trainerPass",
+                "hashed-trainer-pass"
+        );
+
+        verify(trainingRepository)
+                .save(any(Training.class));
     }
 
     @Test
@@ -94,13 +133,26 @@ class TrainingServiceTest {
         TrainingType fitness = new TrainingType("Fitness");
 
         Trainer trainer = new Trainer(
-                new User("Mike", "Brown", "Mike.Brown", "trainerPass", true),
+                new User(
+                        "Mike",
+                        "Brown",
+                        "Mike.Brown",
+                        "hashed-trainer-pass",
+                        true
+                ),
                 fitness
         );
 
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainerRepository.findByUserUsername("Mike.Brown"))
+                .thenReturn(Optional.of(trainer));
 
-        assertThrows(AuthenticationException.class,
+        when(passwordEncoder.matches(
+                "wrongPass",
+                "hashed-trainer-pass"
+        )).thenReturn(false);
+
+        assertThrows(
+                AuthenticationException.class,
                 () -> trainingService.addTraining(
                         "Mike.Brown",
                         "wrongPass",
@@ -108,14 +160,20 @@ class TrainingServiceTest {
                         "Morning Training",
                         LocalDate.of(2026, 5, 10),
                         60
-                ));
+                )
+        );
 
-        verify(trainingRepository, never()).save(any());
+        verify(trainingRepository, never())
+                .save(any());
+
+        verify(traineeRepository, never())
+                .findByUserUsername(any());
     }
 
     @Test
     void shouldThrowValidationExceptionWhenTrainingDurationIsInvalid() {
-        assertThrows(ValidationException.class,
+        assertThrows(
+                ValidationException.class,
                 () -> trainingService.addTraining(
                         "Mike.Brown",
                         "trainerPass",
@@ -123,25 +181,39 @@ class TrainingServiceTest {
                         "Morning Training",
                         LocalDate.of(2026, 5, 10),
                         0
-                ));
+                )
+        );
 
-        verify(trainingRepository, never()).save(any());
+        verify(trainingRepository, never())
+                .save(any());
+
+        verify(passwordEncoder, never())
+                .matches(any(), any());
     }
 
     @Test
-    void shouldReturnTraineeTrainingsWithFilters() {
+    void shouldReturnTraineeTrainingsWithoutCheckingPassword() {
         LocalDate fromDate = LocalDate.of(2026, 1, 1);
         LocalDate toDate = LocalDate.of(2026, 12, 31);
 
         Trainee trainee = new Trainee(
-                new User("John", "Smith", "John.Smith", "traineePass", true),
+                new User(
+                        "John",
+                        "Smith",
+                        "John.Smith",
+                        "hashed-trainee-pass",
+                        true
+                ),
                 LocalDate.of(2000, 1, 1),
                 "Tbilisi"
         );
 
-        List<Training> trainings = List.of(new Training());
+        List<Training> trainings =
+                List.of(new Training());
 
-        when(traineeRepository.findByUserUsername("John.Smith")).thenReturn(Optional.of(trainee));
+        when(traineeRepository.findByUserUsername("John.Smith"))
+                .thenReturn(Optional.of(trainee));
+
         when(trainingRepository.findTraineeTrainings(
                 "John.Smith",
                 fromDate,
@@ -150,16 +222,29 @@ class TrainingServiceTest {
                 "Fitness"
         )).thenReturn(trainings);
 
-        List<Training> result = trainingService.getTraineeTrainings(
+        List<Training> result =
+                trainingService.getTraineeTrainings(
+                        "John.Smith",
+                        fromDate,
+                        toDate,
+                        "Mike.Brown",
+                        "Fitness"
+                );
+
+        assertEquals(trainings, result);
+
+        verify(traineeRepository)
+                .findByUserUsername("John.Smith");
+
+        verify(trainingRepository).findTraineeTrainings(
                 "John.Smith",
-                "traineePass",
                 fromDate,
                 toDate,
                 "Mike.Brown",
                 "Fitness"
         );
 
-        assertEquals(trainings, result);
+        verifyNoInteractions(passwordEncoder);
     }
 
     @Test
@@ -170,13 +255,27 @@ class TrainingServiceTest {
         TrainingType fitness = new TrainingType("Fitness");
 
         Trainer trainer = new Trainer(
-                new User("Mike", "Brown", "Mike.Brown", "trainerPass", true),
+                new User(
+                        "Mike",
+                        "Brown",
+                        "Mike.Brown",
+                        "hashed-trainer-pass",
+                        true
+                ),
                 fitness
         );
 
-        List<Training> trainings = List.of(new Training());
+        List<Training> trainings =
+                List.of(new Training());
 
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
+        when(trainerRepository.findByUserUsername("Mike.Brown"))
+                .thenReturn(Optional.of(trainer));
+
+        when(passwordEncoder.matches(
+                "trainerPass",
+                "hashed-trainer-pass"
+        )).thenReturn(true);
+
         when(trainingRepository.findTrainerTrainings(
                 "Mike.Brown",
                 fromDate,
@@ -184,26 +283,37 @@ class TrainingServiceTest {
                 "John.Smith"
         )).thenReturn(trainings);
 
-        List<Training> result = trainingService.getTrainerTrainings(
-                "Mike.Brown",
-                "trainerPass",
-                fromDate,
-                toDate,
-                "John.Smith"
-        );
+        List<Training> result =
+                trainingService.getTrainerTrainings(
+                        "Mike.Brown",
+                        "trainerPass",
+                        fromDate,
+                        toDate,
+                        "John.Smith"
+                );
 
         assertEquals(trainings, result);
+
+        verify(passwordEncoder).matches(
+                "trainerPass",
+                "hashed-trainer-pass"
+        );
     }
 
     @Test
     void shouldThrowValidationExceptionWhenFromDateIsAfterToDate() {
-        assertThrows(ValidationException.class,
+        assertThrows(
+                ValidationException.class,
                 () -> trainingService.getTrainerTrainings(
                         "Mike.Brown",
                         "trainerPass",
                         LocalDate.of(2026, 12, 31),
                         LocalDate.of(2026, 1, 1),
                         "John.Smith"
-                ));
+                )
+        );
+
+        verify(passwordEncoder, never())
+                .matches(any(), any());
     }
 }

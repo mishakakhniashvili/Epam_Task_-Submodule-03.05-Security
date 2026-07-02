@@ -14,6 +14,8 @@ import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class TrainingService {
     private TraineeRepository traineeRepository;
     private TrainerRepository trainerRepository;
     private TrainingTypeRepository trainingTypeRepository;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public void setTrainingRepository(TrainingRepository trainingRepository) {
@@ -50,6 +53,13 @@ public class TrainingService {
     public void setTrainingTypeRepository(TrainingTypeRepository trainingTypeRepository) {
         this.trainingTypeRepository = trainingTypeRepository;
     }
+
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+
 
     @Transactional
     public Training create(Training training) {
@@ -88,12 +98,65 @@ public class TrainingService {
             throw new ValidationException("Training duration is less or equal to 0");
         }
 
+
+
         Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
 
-        if (!trainer.getUser().getPassword().equals(trainerPassword)) {
+        if (!passwordEncoder.matches(
+                trainerPassword,
+                trainer.getUser().getPassword()
+        )) {
             throw new AuthenticationException("Wrong Password");
         }
+
+        Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
+                .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
+
+        TrainingType trainingType = trainer.getSpecialization();
+
+        Training training = new Training(
+                trainingName,
+                trainingDate,
+                trainer,
+                trainee,
+                trainingType,
+                trainingDuration
+        );
+
+        return create(training);
+    }
+
+    @Transactional
+    public Training addTraining(
+            String trainerUsername,
+            String traineeUsername,
+            String trainingName,
+            LocalDate trainingDate,
+            Integer trainingDuration
+    ) {
+        validateParameter(trainerUsername);
+        validateParameter(traineeUsername);
+        validateParameter(trainingName);
+
+        if (trainingDate == null) {
+            throw new ValidationException("Training date is null");
+        }
+
+        if (trainingDuration == null) {
+            throw new ValidationException("Training duration is null");
+        }
+
+        if (trainingDuration <= 0) {
+            throw new ValidationException("Training duration is less or equal to 0");
+        }
+
+
+
+        Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
+                .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
+
+
 
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
@@ -123,15 +186,39 @@ public class TrainingService {
 
     @Transactional(readOnly = true)
     public List<Training> getTraineeTrainings(
+            Authentication authentication,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String trainerUsername,
+            String trainingTypeName
+    ) {
+        String username = authentication.getName();
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new ValidationException("From date cannot be after to date");
+        }
+
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("trainee", username));
+
+
+        return trainingRepository.findTraineeTrainings(
+                username,
+                fromDate,
+                toDate,
+                trainerUsername,
+                trainingTypeName
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Training> getTraineeTrainings(
             String traineeUsername,
-            String traineePassword,
             LocalDate fromDate,
             LocalDate toDate,
             String trainerUsername,
             String trainingTypeName
     ) {
         validateParameter(traineeUsername);
-        validateParameter(traineePassword);
 
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new ValidationException("From date cannot be after to date");
@@ -139,10 +226,6 @@ public class TrainingService {
 
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
-
-        if (!trainee.getUser().getPassword().equals(traineePassword)) {
-            throw new AuthenticationException("Invalid credentials entered");
-        }
 
         return trainingRepository.findTraineeTrainings(
                 traineeUsername,
@@ -171,7 +254,10 @@ public class TrainingService {
         Trainer trainer = trainerRepository.findByUserUsername(trainerUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainer", trainerUsername));
 
-        if (!trainer.getUser().getPassword().equals(trainerPassword)) {
+        if (!passwordEncoder.matches(
+                trainerPassword,
+                trainer.getUser().getPassword()
+        )) {
             throw new AuthenticationException("Invalid credentials entered");
         }
 
@@ -196,5 +282,38 @@ public class TrainingService {
     @Transactional(readOnly = true)
     public List<TrainingType> getTrainingTypes() {
         return trainingTypeRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Training> getTrainerTrainings(
+            String trainerUsername,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String traineeUsername
+    ) {
+        validateParameter(trainerUsername);
+
+        if (fromDate != null
+                && toDate != null
+                && fromDate.isAfter(toDate)) {
+            throw new ValidationException(
+                    "From date cannot be after to date"
+            );
+        }
+
+        trainerRepository.findByUserUsername(trainerUsername)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "trainer",
+                                trainerUsername
+                        )
+                );
+
+        return trainingRepository.findTrainerTrainings(
+                trainerUsername,
+                fromDate,
+                toDate,
+                traineeUsername
+        );
     }
 }

@@ -12,6 +12,7 @@ import com.epam.gymcrm.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class TraineeService {
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
     private TrainerRepository trainerRepository;
+    private PasswordEncoder passwordEncoder;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TraineeService.class);
 
@@ -57,14 +59,20 @@ public class TraineeService {
         this.trainerRepository = trainerRepository;
     }
 
+    @Autowired
+    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
     @Transactional
-    public Trainee create(Trainee trainee) {
+    public RegistrationResult create(Trainee trainee) {
         validateTraineeRequiredFields(trainee);
         User user = trainee.getUser();
         String username = generateUsername(trainee);
+        String rawPassword = passwordGenerator.generatePassword();
 
         user.setUsername(username);
-        user.setPassword(passwordGenerator.generatePassword());
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setActive(true);
 
         Trainee createdTrainee = traineeRepository.save(trainee);
@@ -73,7 +81,10 @@ public class TraineeService {
                 createdTrainee.getId(),
                 createdTrainee.getUser().getUsername());
 
-        return createdTrainee;
+        return new RegistrationResult(
+                createdTrainee.getUser().getUsername(),
+                rawPassword
+        );
     }
 
     //finds every existing username and generates a new one according to the rules
@@ -86,14 +97,6 @@ public class TraineeService {
                 user.getLastName(),
                 existingUsernames
         );
-    }
-
-    @Transactional
-    public Trainee update(String username, String password, Trainee trainee) {
-        validateCredentials(username, password);
-        validateTraineeRequiredFields(trainee);
-        LOGGER.info("Updating trainee with id={}", trainee.getId());
-        return traineeRepository.save(trainee);
     }
 
     @Transactional
@@ -111,15 +114,20 @@ public class TraineeService {
         return traineeRepository.findAll();
     }
 
-    public Optional<Trainee> findByUsername(String authUsername, String authPassword, String targetUsername) {
-        validateCredentials(authUsername, authPassword);
-        LOGGER.info("Finding trainee with username={}", targetUsername);
-        return traineeRepository.findByUserUsername(targetUsername);
+    public Optional<Trainee> findByUsername(String username) {
+        validateRequiredString(username, "username");
+
+        LOGGER.info("Finding trainee with username={}", username);
+
+        return traineeRepository.findByUserUsername(username);
     }
 
     public boolean isCredentialsValid(String username, String password) {
         return traineeRepository.findByUserUsername(username)
-                .map(trainee -> trainee.getUser().getPassword().equals(password))
+                .map(trainee -> passwordEncoder.matches(
+                        password,
+                        trainee.getUser().getPassword()
+                ))
                 .orElse(false);
     }
 
@@ -135,7 +143,7 @@ public class TraineeService {
 
         Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
 
-        trainee.getUser().setPassword(newPassword);
+        trainee.getUser().setPassword(passwordEncoder.encode(newPassword));
 
         traineeRepository.save(trainee);
 
@@ -143,28 +151,41 @@ public class TraineeService {
     }
 
     @Transactional
-    public void activate(String username, String password){
-        validateCredentials(username, password);
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
-        if(trainee.getUser().isActive()){throw new IllegalStateException("Traineeis already active.");}
+    public void activate(String username) {
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
+
+        if (trainee.getUser().isActive()) {
+            throw new IllegalStateException("Trainee is already active.");
+        }
+
         trainee.getUser().setActive(true);
         traineeRepository.save(trainee);
+
         LOGGER.info("Activated trainee with id={}", trainee.getId());
     }
 
     @Transactional
-    public void deactivate(String username, String password){
-        validateCredentials(username, password);
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow();
-        if(!trainee.getUser().isActive()){throw new IllegalStateException("Trainee is already inactive.");}
+    public void deactivate(String username) {
+        Trainee trainee = traineeRepository.findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
+
+        if (!trainee.getUser().isActive()) {
+            throw new IllegalStateException("Trainee is already inactive.");
+        }
+
         trainee.getUser().setActive(false);
         traineeRepository.save(trainee);
+
         LOGGER.info("Deactivated trainee with id={}", trainee.getId());
     }
 
     @Transactional
-    public void deleteByUsername(String username, String password){
-        validateCredentials(username, password);
+    public void deleteByUsername(String username){
         Trainee trainee = traineeRepository.findByUserUsername(username)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", username));
         traineeRepository.deleteById(trainee.getId());
@@ -172,19 +193,15 @@ public class TraineeService {
     }
 
     @Transactional(readOnly = true)
-    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername, String traineePassword){
-        validateCredentials(traineeUsername, traineePassword);
+    public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername){
         return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
     }
 
     @Transactional
     public Trainee updateTraineeTrainersList(
             String traineeUsername,
-            String traineePassword,
             List<String> trainerUsernames
     ) {
-        validateCredentials(traineeUsername, traineePassword);
-
         Trainee trainee = traineeRepository.findByUserUsername(traineeUsername)
                 .orElseThrow(() -> new EntityNotFoundException("trainee", traineeUsername));
 
@@ -232,25 +249,25 @@ public class TraineeService {
     @Transactional
     public Trainee updateProfile(
             String username,
-            String password,
             String firstName,
             String lastName,
             LocalDate dateOfBirth,
             String address,
-            Boolean active)
-    {
+            Boolean active
+    ) {
         validateRequiredString(username, "username");
-        validateRequiredString(password, "password");
         validateRequiredString(firstName, "firstName");
         validateRequiredString(lastName, "lastName");
-        validateCredentials(username, password);
+
         if (active == null) {
             throw new ValidationException("active cannot be null");
         }
-        Trainee trainee = traineeRepository.findByUserUsername(username).orElseThrow(
-                () -> new EntityNotFoundException("trainee", username)
-        );
 
+        Trainee trainee = traineeRepository
+                .findByUserUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("trainee", username)
+                );
 
         trainee.getUser().setFirstName(firstName);
         trainee.getUser().setLastName(lastName);
@@ -260,5 +277,4 @@ public class TraineeService {
 
         return traineeRepository.save(trainee);
     }
-
 }

@@ -14,12 +14,14 @@ import com.epam.gymcrm.mapper.TraineeMapper;
 import com.epam.gymcrm.mapper.TrainerMapper;
 import com.epam.gymcrm.mapper.TrainingMapper;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
+import com.epam.gymcrm.service.RegistrationResult;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -81,13 +83,13 @@ public class TraineeController {
                 request.getAddress()
         );
 
-        Trainee createdTrainee = gymFacade.createTrainee(trainee);
+        RegistrationResult createdTrainee = gymFacade.createTrainee(trainee);
 
         gymCrmMetrics.incrementTraineeRegistrations();
 
         RegistrationResponse response = new RegistrationResponse(
-                createdTrainee.getUser().getUsername(),
-                createdTrainee.getUser().getPassword()
+                createdTrainee.username(),
+                createdTrainee.rawPassword()
         );
 
         LOGGER.info("Trainee registered successfully with username={}", response.getUsername());
@@ -103,18 +105,24 @@ public class TraineeController {
     })
     @GetMapping("/profile")
     public ResponseEntity<TraineeProfileResponse> getTraineeProfile(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee profile request received for username={}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        Trainee trainee = gymFacade.findTraineeByUsername(username, password, username).orElseThrow(
-                () -> new EntityNotFoundException("Trainee" , username)
+        LOGGER.info(
+                "Trainee profile request received for username={}",
+                username
         );
 
-        TraineeProfileResponse response = traineeMapper.toProfileResponse(trainee);
-        LOGGER.info("Trainee profile successfully retrieved for username={}", username);
-        return ResponseEntity.ok(response);
+        Trainee trainee = gymFacade
+                .findTraineeByUsername(username)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Trainee", username)
+                );
+
+        return ResponseEntity.ok(
+                traineeMapper.toProfileResponse(trainee)
+        );
     }
 
     @ApiOperation("Update trainee profile")
@@ -126,13 +134,13 @@ public class TraineeController {
     })
     @PutMapping("/profile")
     public ResponseEntity<TraineeProfileResponse> updateTraineeProfile(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody TraineeUpdateRequest request
-            ){
-        LOGGER.info("Trainee profile update request received for username={}", request.getUsername());
+    ) {
+        String username = authentication.getName();
+        LOGGER.info("Trainee profile update request received for username={}", username);
         Trainee trainee = gymFacade.updateProfile(
-                request.getUsername(),
-                password,
+                username,
                 request.getFirstName(),
                 request.getLastName(),
                 request.getDateOfBirth(),
@@ -141,7 +149,7 @@ public class TraineeController {
         );
         TraineeProfileResponse response = traineeMapper.toProfileResponse(trainee);
 
-        LOGGER.info("Trainee profile successfully updated for username={}", request.getUsername());
+        LOGGER.info("Trainee profile successfully updated for username={}", username);
 
         return  ResponseEntity.ok(response);
     }
@@ -154,14 +162,11 @@ public class TraineeController {
     })
     @DeleteMapping("/profile")
     public ResponseEntity<Void> deleteTraineeProfile(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee profile delete request received for username={}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        gymFacade.deleteTraineeByUsername(username, password);
-
-        LOGGER.info("Trainee profile successfully deleted for username={}", username);
+        gymFacade.deleteTraineeByUsername(username);
 
         return ResponseEntity.ok().build();
     }
@@ -175,19 +180,16 @@ public class TraineeController {
     })
     @PatchMapping("/status")
     public ResponseEntity<Void> updateTraineeStatus(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody ActivationRequest request
-    ){
-        LOGGER.info("Trainee status update request received for username={}", request.getUsername());
+    ) {
+        String username = authentication.getName();
 
-        if(request.getActive()){
-            gymFacade.activateTrainee(request.getUsername(),  password);
+        if (request.getActive()) {
+            gymFacade.activateTrainee(username);
+        } else {
+            gymFacade.deactivateTrainee(username);
         }
-        else{
-            gymFacade.deactivateTrainee(request.getUsername(), password);
-        }
-
-        LOGGER.info("Trainee status successfully updated for username={}", request.getUsername());
 
         return ResponseEntity.ok().build();
     }
@@ -201,12 +203,12 @@ public class TraineeController {
     })
     @GetMapping("/not-assigned-trainers")
     public ResponseEntity<List<TrainerShortResponse>> getNotAssignedTrainers(
-            @RequestParam String username,
-            @RequestParam String password
-    ){
-        LOGGER.info("Trainee not assigned trainers request received for username= {}", username);
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
 
-        List<Trainer> trainers = gymFacade.getTrainersNotAssignedToTrainee(username, password);
+        List<Trainer> trainers =
+                gymFacade.getTrainersNotAssignedToTrainee(username);
 
         List<TrainerShortResponse> response = trainers.stream()
                 .map(trainerMapper::toShortResponse)
@@ -225,22 +227,19 @@ public class TraineeController {
     })
     @PutMapping("/trainers")
     public ResponseEntity<List<TrainerShortResponse>> updateTraineeTrainersList(
-            @RequestParam String password,
+            Authentication authentication,
             @Valid @RequestBody TraineeTrainersUpdateRequest request
     ) {
-        LOGGER.info("Trainee trainers list update request received for username={}", request.getUsername());
+        String username = authentication.getName();
 
         Trainee trainee = gymFacade.updateTraineeTrainersList(
-                request.getUsername(),
-                password,
+                username,
                 request.getTrainerUsernames()
         );
 
         List<TrainerShortResponse> response = trainee.getTrainers().stream()
                 .map(trainerMapper::toShortResponse)
                 .toList();
-
-        LOGGER.info("Trainee trainers list successfully updated for username={}", request.getUsername());
 
         return ResponseEntity.ok(response);
     }
@@ -255,18 +254,30 @@ public class TraineeController {
     })
     @GetMapping("/trainings")
     public ResponseEntity<List<TraineeTrainingResponse>> getTraineeTrainings(
-            @RequestParam String username,
-            @RequestParam String password,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) String trainerUsername,
-            @RequestParam(required = false) String trainingTypeName
+            Authentication authentication,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fromDate,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate toDate,
+
+            @RequestParam(required = false)
+            String trainerUsername,
+
+            @RequestParam(required = false)
+            String trainingTypeName
     ) {
-        LOGGER.info("Trainee trainings list request received for username={}", username);
+        String username = authentication.getName();
+
+        LOGGER.info(
+                "Trainee trainings list request received for username={}",
+                username
+        );
 
         List<Training> trainings = gymFacade.getTraineeTrainings(
                 username,
-                password,
                 fromDate,
                 toDate,
                 trainerUsername,

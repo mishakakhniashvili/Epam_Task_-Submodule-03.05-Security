@@ -9,9 +9,6 @@ import java.time.LocalDate;
 @Getter
 public class TraineeUpdateRequest {
 
-    @NotBlank(message = "Username is required")
-    private String username;
-
     @NotBlank(message = "firstName is required")
     private String firstName;
 

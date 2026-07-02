@@ -8,9 +8,6 @@ import java.util.List;
 
 @Getter
 public class TraineeTrainersUpdateRequest {
-    @NotBlank
-    private String username;
-
     @NotEmpty
     private List<@NotBlank String> trainerUsernames;
 }

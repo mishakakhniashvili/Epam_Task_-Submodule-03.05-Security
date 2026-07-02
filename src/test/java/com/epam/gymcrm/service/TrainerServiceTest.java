@@ -3,19 +3,20 @@ package com.epam.gymcrm.service;
 import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
-import com.epam.gymcrm.exception.AuthenticationException;
 import com.epam.gymcrm.exception.ValidationException;
 import com.epam.gymcrm.repository.TrainerRepository;
+import com.epam.gymcrm.repository.TrainingTypeRepository;
 import com.epam.gymcrm.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class TrainerServiceTest {
@@ -23,125 +24,255 @@ class TrainerServiceTest {
     private TrainerService trainerService;
     private TrainerRepository trainerRepository;
     private UserRepository userRepository;
+    private TrainingTypeRepository trainingTypeRepository;
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
-        trainerRepository = Mockito.mock(TrainerRepository.class);
-        userRepository = Mockito.mock(UserRepository.class);
-        usernameGenerator = Mockito.mock(UsernameGenerator.class);
-        passwordGenerator = Mockito.mock(PasswordGenerator.class);
+        trainerRepository = mock(TrainerRepository.class);
+        userRepository = mock(UserRepository.class);
+        trainingTypeRepository = mock(TrainingTypeRepository.class);
+        usernameGenerator = mock(UsernameGenerator.class);
+        passwordGenerator = mock(PasswordGenerator.class);
+        passwordEncoder = mock(PasswordEncoder.class);
 
         trainerService = new TrainerService();
         trainerService.setTrainerRepository(trainerRepository);
         trainerService.setUserRepository(userRepository);
+        trainerService.setTrainingTypeRepository(trainingTypeRepository);
         trainerService.setUsernameGenerator(usernameGenerator);
         trainerService.setPasswordGenerator(passwordGenerator);
+        trainerService.setPasswordEncoder(passwordEncoder);
     }
 
     @Test
-    void shouldCreateTrainerWithGeneratedUsernamePasswordAndActiveStatus() {
+    void shouldCreateTrainerWithGeneratedUsernameHashedPasswordAndActiveStatus() {
         TrainingType fitness = new TrainingType("Fitness");
-        User user = new User("Mike", "Brown", null, null, false);
+        User user = new User(
+                "Mike",
+                "Brown",
+                null,
+                null,
+                false
+        );
+
         Trainer trainer = new Trainer(user, fitness);
 
-        when(userRepository.findAllUsernames()).thenReturn(List.of());
-        when(usernameGenerator.generateUsername("Mike", "Brown", List.of()))
-                .thenReturn("Mike.Brown");
-        when(passwordGenerator.generatePassword()).thenReturn("pass123456");
-        when(trainerRepository.save(trainer)).thenAnswer(invocation -> {
-            trainer.setId(1L);
-            trainer.getUser().setId(10L);
-            return trainer;
-        });
+        when(userRepository.findAllUsernames())
+                .thenReturn(List.of());
 
-        Trainer createdTrainer = trainerService.create(trainer);
+        when(usernameGenerator.generateUsername(
+                "Mike",
+                "Brown",
+                List.of()
+        )).thenReturn("Mike.Brown");
 
-        assertEquals(1L, createdTrainer.getId());
-        assertEquals("Mike.Brown", createdTrainer.getUser().getUsername());
-        assertEquals("pass123456", createdTrainer.getUser().getPassword());
-        assertTrue(createdTrainer.getUser().isActive());
+        when(passwordGenerator.generatePassword())
+                .thenReturn("pass123456");
 
+        when(passwordEncoder.encode("pass123456"))
+                .thenReturn("hashed-pass123456");
+
+        when(trainerRepository.save(trainer))
+                .thenAnswer(invocation -> {
+                    trainer.setId(1L);
+                    trainer.getUser().setId(10L);
+                    return trainer;
+                });
+
+        RegistrationResult result =
+                trainerService.create(trainer);
+
+        assertEquals("Mike.Brown", result.username());
+        assertEquals("pass123456", result.rawPassword());
+        assertEquals(1L, trainer.getId());
+        assertEquals(
+                "Mike.Brown",
+                trainer.getUser().getUsername()
+        );
+        assertEquals(
+                "hashed-pass123456",
+                trainer.getUser().getPassword()
+        );
+        assertTrue(trainer.getUser().isActive());
+
+        verify(passwordEncoder).encode("pass123456");
         verify(trainerRepository).save(trainer);
+    }
+
+    @Test
+    void shouldCreateTrainerFromRegistrationFields() {
+        TrainingType fitness = new TrainingType("Fitness");
+
+        when(trainingTypeRepository.findByName("Fitness"))
+                .thenReturn(Optional.of(fitness));
+
+        when(userRepository.findAllUsernames())
+                .thenReturn(List.of());
+
+        when(usernameGenerator.generateUsername(
+                "Mike",
+                "Brown",
+                List.of()
+        )).thenReturn("Mike.Brown");
+
+        when(passwordGenerator.generatePassword())
+                .thenReturn("pass123456");
+
+        when(passwordEncoder.encode("pass123456"))
+                .thenReturn("hashed-pass123456");
+
+        when(trainerRepository.save(any(Trainer.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0)
+                );
+
+        RegistrationResult result =
+                trainerService.create(
+                        "Mike",
+                        "Brown",
+                        "Fitness"
+                );
+
+        assertEquals("Mike.Brown", result.username());
+        assertEquals("pass123456", result.rawPassword());
+
+        ArgumentCaptor<Trainer> captor =
+                ArgumentCaptor.forClass(Trainer.class);
+
+        verify(trainerRepository).save(captor.capture());
+
+        Trainer savedTrainer = captor.getValue();
+
+        assertEquals(
+                fitness,
+                savedTrainer.getSpecialization()
+        );
+        assertEquals(
+                "Mike",
+                savedTrainer.getUser().getFirstName()
+        );
+        assertEquals(
+                "Brown",
+                savedTrainer.getUser().getLastName()
+        );
+        assertEquals(
+                "Mike.Brown",
+                savedTrainer.getUser().getUsername()
+        );
+        assertEquals(
+                "hashed-pass123456",
+                savedTrainer.getUser().getPassword()
+        );
+        assertTrue(savedTrainer.getUser().isActive());
     }
 
     @Test
     void shouldThrowValidationExceptionWhenCreatingTrainerWithoutSpecialization() {
-        User user = new User("Mike", "Brown", null, null, false);
+        User user = new User(
+                "Mike",
+                "Brown",
+                null,
+                null,
+                false
+        );
+
         Trainer trainer = new Trainer(user, null);
 
-        assertThrows(ValidationException.class, () -> trainerService.create(trainer));
+        assertThrows(
+                ValidationException.class,
+                () -> trainerService.create(trainer)
+        );
 
-        verify(trainerRepository, never()).save(any());
-    }
+        verify(trainerRepository, never())
+                .save(any());
 
-    @Test
-    void shouldUpdateTrainerWhenCredentialsAreValid() {
-        TrainingType fitness = new TrainingType("Fitness");
-        TrainingType yoga = new TrainingType("Yoga");
-
-        User authUser = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
-        Trainer existingTrainer = new Trainer(authUser, fitness);
-
-        User updatedUser = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
-        Trainer updatedTrainer = new Trainer(updatedUser, yoga);
-        updatedTrainer.setId(1L);
-
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
-        when(trainerRepository.save(updatedTrainer)).thenReturn(updatedTrainer);
-
-        Trainer result = trainerService.update("Mike.Brown", "oldpass", updatedTrainer);
-
-        assertEquals(yoga, result.getSpecialization());
-        verify(trainerRepository).save(updatedTrainer);
-    }
-
-    @Test
-    void shouldThrowAuthenticationExceptionWhenUpdatingWithWrongPassword() {
-        TrainingType fitness = new TrainingType("Fitness");
-
-        User authUser = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
-        Trainer existingTrainer = new Trainer(authUser, fitness);
-
-        User updatedUser = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
-        Trainer updatedTrainer = new Trainer(updatedUser, fitness);
-
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(existingTrainer));
-
-        assertThrows(AuthenticationException.class,
-                () -> trainerService.update("Mike.Brown", "wrongpass", updatedTrainer));
-
-        verify(trainerRepository, never()).save(any());
+        verify(passwordEncoder, never())
+                .encode(any());
     }
 
     @Test
     void shouldChangePasswordWhenOldPasswordIsValid() {
-        TrainingType fitness = new TrainingType("Fitness");
-        User user = new User("Mike", "Brown", "Mike.Brown", "oldpass", true);
+        TrainingType fitness =
+                new TrainingType("Fitness");
+
+        User user = new User(
+                "Mike",
+                "Brown",
+                "Mike.Brown",
+                "hashed-oldpass",
+                true
+        );
+
         Trainer trainer = new Trainer(user, fitness);
 
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(trainerRepository.save(trainer)).thenReturn(trainer);
+        when(trainerRepository.findByUserUsername("Mike.Brown"))
+                .thenReturn(Optional.of(trainer));
 
-        trainerService.changePassword("Mike.Brown", "oldpass", "newpass");
+        when(passwordEncoder.matches(
+                "oldpass",
+                "hashed-oldpass"
+        )).thenReturn(true);
 
-        assertEquals("newpass", trainer.getUser().getPassword());
+        when(passwordEncoder.encode("newpass"))
+                .thenReturn("hashed-newpass");
+
+        when(trainerRepository.save(trainer))
+                .thenReturn(trainer);
+
+        trainerService.changePassword(
+                "Mike.Brown",
+                "oldpass",
+                "newpass"
+        );
+
+        assertEquals(
+                "hashed-newpass",
+                trainer.getUser().getPassword()
+        );
+
+        verify(passwordEncoder).matches(
+                "oldpass",
+                "hashed-oldpass"
+        );
+
+        verify(passwordEncoder).encode("newpass");
         verify(trainerRepository).save(trainer);
     }
 
     @Test
-    void shouldDeactivateActiveTrainer() {
-        TrainingType fitness = new TrainingType("Fitness");
-        User user = new User("Mike", "Brown", "Mike.Brown", "password", true);
+    void shouldDeactivateActiveTrainerWithoutCheckingPassword() {
+        TrainingType fitness =
+                new TrainingType("Fitness");
+
+        User user = new User(
+                "Mike",
+                "Brown",
+                "Mike.Brown",
+                "hashed-password",
+                true
+        );
+
         Trainer trainer = new Trainer(user, fitness);
 
-        when(trainerRepository.findByUserUsername("Mike.Brown")).thenReturn(Optional.of(trainer));
-        when(trainerRepository.save(trainer)).thenReturn(trainer);
+        when(trainerRepository.findByUserUsername("Mike.Brown"))
+                .thenReturn(Optional.of(trainer));
 
-        trainerService.deactivate("Mike.Brown", "password");
+        when(trainerRepository.save(trainer))
+                .thenReturn(trainer);
+
+        trainerService.deactivate("Mike.Brown");
 
         assertFalse(trainer.getUser().isActive());
+
+        verify(trainerRepository)
+                .findByUserUsername("Mike.Brown");
+
         verify(trainerRepository).save(trainer);
+
+        verify(passwordEncoder, never())
+                .matches(any(), any());
     }
 }

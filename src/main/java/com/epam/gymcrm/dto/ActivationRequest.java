@@ -6,8 +6,6 @@ import lombok.Getter;
 
 @Getter
 public class ActivationRequest {
-    @NotBlank
-    private String username;
     @NotNull
     private Boolean active;
 }

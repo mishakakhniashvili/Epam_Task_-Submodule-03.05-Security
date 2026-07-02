@@ -2,154 +2,893 @@ openapi: 3.0.3
 info:
   title: Gym CRM REST API
   version: 1.0.0
-  description: REST API for Gym CRM system
+  description: |
+    REST API for the Gym CRM system.
+
+    Public endpoints are limited to trainee registration, trainer registration,
+    and login. Every other endpoint requires a Bearer JWT.
 
 servers:
   - url: /
 
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: Login, logout, and password management
+  - name: Trainees
+    description: Trainee registration and profile operations
+  - name: Trainers
+    description: Trainer registration and profile operations
+  - name: Trainings
+    description: Training operations and training types
+
 paths:
   /api/trainees/register:
     post:
-      summary: Register trainee
-      tags: [Trainees]
+      security: []
+      tags:
+        - Trainees
+      summary: Register a trainee
+      operationId: registerTrainee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraineeRegistrationRequest'
       responses:
         '201':
           description: Trainee registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/trainers/register:
     post:
-      summary: Register trainer
-      tags: [Trainers]
+      security: []
+      tags:
+        - Trainers
+      summary: Register a trainer
+      operationId: registerTrainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainerRegistrationRequest'
       responses:
         '201':
           description: Trainer registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/login:
-    get:
-      summary: Login user
-      tags: [Authentication]
+    post:
+      security: []
+      tags:
+        - Authentication
+      summary: Authenticate a user and issue a JWT
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
           description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
-          description: Invalid credentials
-      parameters:
-        - name: username
-          in: query
-          required: true
-          schema:
-            type: string
+          description: Invalid credentials or user temporarily blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-        - name: password
-          in: query
-          required: true
-          schema:
-            type: string
-            format: password
-
+  /api/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Log out and revoke the current JWT
+      operationId: logout
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /api/password:
     put:
-      summary: Change password
-      tags: [Authentication]
+      tags:
+        - Authentication
+      summary: Change the authenticated user's password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
       responses:
         '200':
           description: Password changed successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Missing or invalid JWT, or incorrect old password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/trainees/profile:
     get:
-      summary: Get trainee profile
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Get the authenticated trainee's profile
+      operationId: getTraineeProfile
       responses:
         '200':
-          description: Trainee profile returned
+          description: Trainee profile returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraineeProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
     put:
-      summary: Update trainee profile
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Update the authenticated trainee's profile
+      operationId: updateTraineeProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraineeUpdateRequest'
       responses:
         '200':
-          description: Trainee profile updated
+          description: Trainee profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraineeProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
     delete:
-      summary: Delete trainee profile
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Delete the authenticated trainee's profile
+      operationId: deleteTraineeProfile
       responses:
         '200':
-          description: Trainee profile deleted
+          description: Trainee profile deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainers/profile:
     get:
-      summary: Get trainer profile
-      tags: [Trainers]
+      tags:
+        - Trainers
+      summary: Get the authenticated trainer's profile
+      operationId: getTrainerProfile
       responses:
         '200':
-          description: Trainer profile returned
+          description: Trainer profile returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainerProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
     put:
-      summary: Update trainer profile
-      tags: [Trainers]
+      tags:
+        - Trainers
+      summary: Update the authenticated trainer's profile
+      operationId: updateTrainerProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainerUpdateRequest'
       responses:
         '200':
-          description: Trainer profile updated
+          description: Trainer profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainerProfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainees/status:
     patch:
-      summary: Activate or deactivate trainee
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Activate or deactivate the authenticated trainee
+      operationId: updateTraineeStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationRequest'
       responses:
         '200':
-          description: Trainee status updated
+          description: Trainee status updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/trainers/status:
     patch:
-      summary: Activate or deactivate trainer
-      tags: [Trainers]
+      tags:
+        - Trainers
+      summary: Activate or deactivate the authenticated trainer
+      operationId: updateTrainerStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivationRequest'
       responses:
         '200':
-          description: Trainer status updated
+          description: Trainer status updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/trainees/not-assigned-trainers:
     get:
-      summary: Get active trainers not assigned to trainee
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Get active trainers not assigned to the authenticated trainee
+      operationId: getNotAssignedTrainers
       responses:
         '200':
-          description: Trainers returned
+          description: Trainers returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainerShortResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainees/trainers:
     put:
-      summary: Update trainee trainers list
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Replace the authenticated trainee's trainer list
+      operationId: updateTraineeTrainersList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraineeTrainersUpdateRequest'
       responses:
         '200':
-          description: Trainer list updated
+          description: Trainer list updated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainerShortResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainees/trainings:
     get:
-      summary: Get trainee trainings
-      tags: [Trainees]
+      tags:
+        - Trainees
+      summary: Get trainings for the authenticated trainee
+      operationId: getTraineeTrainings
+      parameters:
+        - name: fromDate
+          in: query
+          required: false
+          description: Include trainings on or after this date
+          schema:
+            type: string
+            format: date
+          example: '2026-01-01'
+        - name: toDate
+          in: query
+          required: false
+          description: Include trainings on or before this date
+          schema:
+            type: string
+            format: date
+          example: '2026-12-31'
+        - name: trainerUsername
+          in: query
+          required: false
+          description: Filter by trainer username
+          schema:
+            type: string
+          example: Mike.Brown
+        - name: trainingTypeName
+          in: query
+          required: false
+          description: Filter by training type
+          schema:
+            type: string
+          example: Fitness
       responses:
         '200':
-          description: Trainee trainings returned
+          description: Trainee trainings returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraineeTrainingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainers/trainings:
     get:
-      summary: Get trainer trainings
-      tags: [Trainers]
+      tags:
+        - Trainers
+      summary: Get trainings for the authenticated trainer
+      operationId: getTrainerTrainings
+      parameters:
+        - name: fromDate
+          in: query
+          required: false
+          description: Include trainings on or after this date
+          schema:
+            type: string
+            format: date
+          example: '2026-01-01'
+        - name: toDate
+          in: query
+          required: false
+          description: Include trainings on or before this date
+          schema:
+            type: string
+            format: date
+          example: '2026-12-31'
+        - name: traineeUsername
+          in: query
+          required: false
+          description: Filter by trainee username
+          schema:
+            type: string
+          example: John.Smith
       responses:
         '200':
-          description: Trainer trainings returned
+          description: Trainer trainings returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainerTrainingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/trainings:
     post:
-      summary: Add training
-      tags: [Trainings]
+      tags:
+        - Trainings
+      summary: Add a training as the authenticated trainer
+      operationId: addTraining
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTrainingRequest'
       responses:
         '200':
-          description: Training added
+          description: Training added successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/training-types:
     get:
-      summary: Get training types
-      tags: [Trainings]
+      tags:
+        - Trainings
+      summary: Get all training types
+      operationId: getTrainingTypes
       responses:
         '200':
-          description: Training types returned
+          description: Training types returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingTypeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Missing, invalid, expired, or revoked bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Resource is already in the requested state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: John.Smith
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          example: pass123456
+
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          description: Signed JWT access token
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token lifetime in seconds
+          example: 1800
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          format: password
+          writeOnly: true
+        newPassword:
+          type: string
+          format: password
+          writeOnly: true
+
+    TraineeRegistrationRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+      properties:
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Smith
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+          example: '2000-01-01'
+        address:
+          type: string
+          nullable: true
+          example: Tbilisi
+
+    TrainerRegistrationRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - specialization
+      properties:
+        firstName:
+          type: string
+          example: Mike
+        lastName:
+          type: string
+          example: Brown
+        specialization:
+          type: string
+          example: Fitness
+
+    RegistrationResponse:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: John.Smith
+        password:
+          type: string
+          format: password
+          readOnly: true
+          description: Generated raw password returned only during registration
+          example: pass123456
+
+    TraineeUpdateRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - active
+      properties:
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Smith
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+          example: '2000-01-01'
+        address:
+          type: string
+          nullable: true
+          example: Batumi
+        active:
+          type: boolean
+          example: true
+
+    TrainerUpdateRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - active
+      properties:
+        firstName:
+          type: string
+          example: Mike
+        lastName:
+          type: string
+          example: Brown
+        active:
+          type: boolean
+          example: true
+
+    ActivationRequest:
+      type: object
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          example: true
+
+    TraineeTrainersUpdateRequest:
+      type: object
+      required:
+        - trainerUsernames
+      properties:
+        trainerUsernames:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+          example:
+            - Mike.Brown
+            - Anna.White
+
+    AddTrainingRequest:
+      type: object
+      required:
+        - traineeUsername
+        - trainingName
+        - trainingDate
+        - trainingDuration
+      properties:
+        traineeUsername:
+          type: string
+          example: John.Smith
+        trainingName:
+          type: string
+          example: Morning Training
+        trainingDate:
+          type: string
+          format: date
+          example: '2026-05-10'
+        trainingDuration:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 60
+
+    TraineeProfileResponse:
+      type: object
+      required:
+        - username
+        - firstName
+        - lastName
+        - active
+        - trainers
+      properties:
+        username:
+          type: string
+          example: John.Smith
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Smith
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+          example: '2000-01-01'
+        address:
+          type: string
+          nullable: true
+          example: Tbilisi
+        active:
+          type: boolean
+          example: true
+        trainers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrainerShortResponse'
+
+    TrainerProfileResponse:
+      type: object
+      required:
+        - username
+        - firstName
+        - lastName
+        - specialization
+        - active
+        - trainees
+      properties:
+        username:
+          type: string
+          example: Mike.Brown
+        firstName:
+          type: string
+          example: Mike
+        lastName:
+          type: string
+          example: Brown
+        specialization:
+          type: string
+          example: Fitness
+        active:
+          type: boolean
+          example: true
+        trainees:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraineeShortResponse'
+
+    TrainerShortResponse:
+      type: object
+      required:
+        - trainerUsername
+        - trainerFirstName
+        - trainerLastName
+        - trainerSpecialization
+      properties:
+        trainerUsername:
+          type: string
+          example: Mike.Brown
+        trainerFirstName:
+          type: string
+          example: Mike
+        trainerLastName:
+          type: string
+          example: Brown
+        trainerSpecialization:
+          type: string
+          example: Fitness
+
+    TraineeShortResponse:
+      type: object
+      required:
+        - traineeUsername
+        - traineeFirstName
+        - traineeLastName
+      properties:
+        traineeUsername:
+          type: string
+          example: John.Smith
+        traineeFirstName:
+          type: string
+          example: John
+        traineeLastName:
+          type: string
+          example: Smith
+
+    TraineeTrainingResponse:
+      type: object
+      required:
+        - trainingName
+        - trainingDate
+        - trainingType
+        - trainingDuration
+        - trainerName
+      properties:
+        trainingName:
+          type: string
+          example: Morning Training
+        trainingDate:
+          type: string
+          format: date
+          example: '2026-05-10'
+        trainingType:
+          type: string
+          example: Fitness
+        trainingDuration:
+          type: integer
+          format: int32
+          example: 60
+        trainerName:
+          type: string
+          example: Mike Brown
+
+    TrainerTrainingResponse:
+      type: object
+      required:
+        - trainingName
+        - trainingDate
+        - trainingType
+        - trainingDuration
+        - traineeName
+      properties:
+        trainingName:
+          type: string
+          example: Morning Training
+        trainingDate:
+          type: string
+          format: date
+          example: '2026-05-10'
+        trainingType:
+          type: string
+          example: Fitness
+        trainingDuration:
+          type: integer
+          format: int32
+          example: 60
+        traineeName:
+          type: string
+          example: John Smith
+
+    TrainingTypeResponse:
+      type: object
+      required:
+        - id
+        - trainingTypeName
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        trainingTypeName:
+          type: string
+          example: Fitness
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - message
+      properties:
+        status:
+          type: integer
+          format: int32
+          example: 401
+        error:
+          type: string
+          example: Unauthorized
+        message:
+          type: string
+          example: Missing or invalid bearer token
