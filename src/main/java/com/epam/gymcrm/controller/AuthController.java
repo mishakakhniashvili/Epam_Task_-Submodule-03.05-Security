@@ -8,6 +8,9 @@ import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import com.epam.gymcrm.security.JwtService;
 import com.epam.gymcrm.security.LoginAttemptService;
+import com.epam.gymcrm.security.RevokedTokenService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +18,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -37,18 +43,26 @@ public class AuthController {
 
     private final LoginAttemptService loginAttemptService;
 
+    private final RevokedTokenService revokedTokenService;
+
+    private final SecurityContextLogoutHandler logoutHandler;
+
     public AuthController(
             GymFacade gymFacade,
             GymCrmMetrics gymCrmMetrics,
             AuthenticationManager authenticationManager,
             JwtService jwtService,
-            LoginAttemptService loginAttemptService
+            LoginAttemptService loginAttemptService,
+            RevokedTokenService revokedTokenService,
+            SecurityContextLogoutHandler logoutHandler
     ) {
         this.gymFacade = gymFacade;
         this.gymCrmMetrics = gymCrmMetrics;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.loginAttemptService = loginAttemptService;
+        this.revokedTokenService = revokedTokenService;
+        this.logoutHandler = logoutHandler;
     }
 
     @ApiOperation("Login user")
@@ -161,6 +175,32 @@ public class AuthController {
         LOGGER.info(
                 "Password successfully changed for username={}",
                 username
+        );
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        revokedTokenService.revoke(
+                jwt.getId(),
+                jwt.getExpiresAt()
+        );
+
+        logoutHandler.logout(
+                request,
+                response,
+                authentication
+        );
+
+        LOGGER.info(
+                "User logged out successfully, username={}",
+                authentication.getName()
         );
 
         return ResponseEntity.ok().build();

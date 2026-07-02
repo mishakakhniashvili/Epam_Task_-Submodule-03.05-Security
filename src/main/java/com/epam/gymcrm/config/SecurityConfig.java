@@ -17,6 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import com.epam.gymcrm.security.GymUserDetailsService;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -86,7 +87,14 @@ public class SecurityConfig {
                 oauth2.jwt(Customizer.withDefaults())
         );
 
+        http.logout(AbstractHttpConfigurer::disable);
+
         return http.build();
+    }
+
+    @Bean
+    public SecurityContextLogoutHandler securityContextLogoutHandler() {
+        return new SecurityContextLogoutHandler();
     }
 
 

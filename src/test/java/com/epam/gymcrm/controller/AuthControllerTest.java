@@ -8,6 +8,9 @@ import com.epam.gymcrm.facade.GymFacade;
 import com.epam.gymcrm.metrics.GymCrmMetrics;
 import com.epam.gymcrm.security.JwtService;
 import com.epam.gymcrm.security.LoginAttemptService;
+import com.epam.gymcrm.security.RevokedTokenService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,8 +20,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 import java.lang.reflect.Field;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -41,6 +47,12 @@ class AuthControllerTest {
     @Mock
     private LoginAttemptService loginAttemptService;
 
+    @Mock
+    private RevokedTokenService revokedTokenService;
+
+    @Mock
+    private SecurityContextLogoutHandler logoutHandler;
+
     private AuthController authController;
 
     @BeforeEach
@@ -50,7 +62,9 @@ class AuthControllerTest {
                 gymCrmMetrics,
                 authenticationManager,
                 jwtService,
-                loginAttemptService
+                loginAttemptService,
+                revokedTokenService,
+                logoutHandler
         );
     }
 
@@ -332,6 +346,60 @@ class AuthControllerTest {
                         anyString(),
                         anyString()
                 );
+    }
+
+    @Test
+    void logoutShouldRevokeTokenAndClearSecurityContext() {
+        Authentication authentication =
+                mock(Authentication.class);
+
+        Jwt jwt = mock(Jwt.class);
+
+        HttpServletRequest request =
+                mock(HttpServletRequest.class);
+
+        HttpServletResponse response =
+                mock(HttpServletResponse.class);
+
+        Instant expiresAt =
+                Instant.parse("2026-07-03T01:00:00Z");
+
+        when(authentication.getName())
+                .thenReturn("John.Smith");
+
+        when(jwt.getId())
+                .thenReturn("token-id");
+
+        when(jwt.getExpiresAt())
+                .thenReturn(expiresAt);
+
+        ResponseEntity<Void> result =
+                authController.logout(
+                        authentication,
+                        jwt,
+                        request,
+                        response
+                );
+
+        assertEquals(
+                200,
+                result.getStatusCode().value()
+        );
+
+        assertNull(result.getBody());
+
+        verify(revokedTokenService).revoke(
+                "token-id",
+                expiresAt
+        );
+
+        verify(logoutHandler).logout(
+                request,
+                response,
+                authentication
+        );
+
+        verify(authentication).getName();
     }
 
     private static void setField(

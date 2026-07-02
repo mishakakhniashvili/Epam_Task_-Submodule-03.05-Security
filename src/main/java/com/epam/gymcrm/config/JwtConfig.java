@@ -1,16 +1,17 @@
 package com.epam.gymcrm.config;
 
+import com.epam.gymcrm.security.RevokedTokenService;
+import com.epam.gymcrm.security.RevokedTokenValidator;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.jwt.*;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -44,13 +45,30 @@ public class JwtConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(SecretKey secretKey) {
-        return NimbusJwtDecoder
+    public JwtDecoder jwtDecoder(
+            SecretKey secretKey,
+            RevokedTokenService revokedTokenService
+    ) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
-    }
 
+        OAuth2TokenValidator<Jwt> standardValidator =
+                JwtValidators.createDefaultWithIssuer("gym-crm");
+
+        OAuth2TokenValidator<Jwt> revokedTokenValidator =
+                new RevokedTokenValidator(revokedTokenService);
+
+        decoder.setJwtValidator(
+                new DelegatingOAuth2TokenValidator<>(
+                        standardValidator,
+                        revokedTokenValidator
+                )
+        );
+
+        return decoder;
+    }
     @Bean
     public Clock clock() {
         return Clock.systemUTC();

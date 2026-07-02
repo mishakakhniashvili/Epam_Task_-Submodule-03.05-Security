@@ -114,6 +114,7 @@ class SecurityConfigTest {
                 decodedToken.getExpiresAt()
                         .isAfter(decodedToken.getIssuedAt())
         );
+        assertNotNull(decodedToken.getId());
     }
 
     @Test
