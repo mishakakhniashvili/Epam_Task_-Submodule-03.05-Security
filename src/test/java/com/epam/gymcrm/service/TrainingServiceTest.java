@@ -5,7 +5,7 @@ import com.epam.gymcrm.entity.Trainer;
 import com.epam.gymcrm.entity.Training;
 import com.epam.gymcrm.entity.TrainingType;
 import com.epam.gymcrm.entity.User;
-import com.epam.gymcrm.exception.AuthenticationException;
+import com.epam.gymcrm.exception.EntityNotFoundException;
 import com.epam.gymcrm.exception.ValidationException;
 import com.epam.gymcrm.repository.TraineeRepository;
 import com.epam.gymcrm.repository.TrainerRepository;
@@ -13,7 +13,6 @@ import com.epam.gymcrm.repository.TrainingRepository;
 import com.epam.gymcrm.repository.TrainingTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,7 +29,6 @@ class TrainingServiceTest {
     private TraineeRepository traineeRepository;
     private TrainerRepository trainerRepository;
     private TrainingTypeRepository trainingTypeRepository;
-    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
@@ -38,19 +36,20 @@ class TrainingServiceTest {
         traineeRepository = mock(TraineeRepository.class);
         trainerRepository = mock(TrainerRepository.class);
         trainingTypeRepository = mock(TrainingTypeRepository.class);
-        passwordEncoder = mock(PasswordEncoder.class);
 
         trainingService = new TrainingService();
         trainingService.setTrainingRepository(trainingRepository);
         trainingService.setTraineeRepository(traineeRepository);
         trainingService.setTrainerRepository(trainerRepository);
-        trainingService.setTrainingTypeRepository(trainingTypeRepository);
-        trainingService.setPasswordEncoder(passwordEncoder);
+        trainingService.setTrainingTypeRepository(
+                trainingTypeRepository
+        );
     }
 
     @Test
-    void shouldAddTrainingWhenTrainerCredentialsAreValid() {
-        TrainingType fitness = new TrainingType("Fitness");
+    void shouldAddTrainingWhenTrainerAndTraineeExist() {
+        TrainingType fitness =
+                new TrainingType("Fitness");
 
         Trainee trainee = new Trainee(
                 new User(
@@ -75,88 +74,127 @@ class TrainingServiceTest {
                 fitness
         );
 
-        when(trainerRepository.findByUserUsername("Mike.Brown"))
-                .thenReturn(Optional.of(trainer));
+        when(trainerRepository.findByUserUsername(
+                "Mike.Brown"
+        )).thenReturn(Optional.of(trainer));
 
-        when(passwordEncoder.matches(
-                "trainerPass",
-                "hashed-trainer-pass"
-        )).thenReturn(true);
-
-        when(traineeRepository.findByUserUsername("John.Smith"))
-                .thenReturn(Optional.of(trainee));
+        when(traineeRepository.findByUserUsername(
+                "John.Smith"
+        )).thenReturn(Optional.of(trainee));
 
         when(trainingRepository.save(any(Training.class)))
                 .thenAnswer(invocation -> {
-                    Training training = invocation.getArgument(0);
+                    Training training =
+                            invocation.getArgument(0);
+
                     training.setId(1L);
                     return training;
                 });
 
-        Training createdTraining = trainingService.addTraining(
-                "Mike.Brown",
-                "trainerPass",
-                "John.Smith",
-                "Morning Training",
-                LocalDate.of(2026, 5, 10),
-                60
-        );
+        Training createdTraining =
+                trainingService.addTraining(
+                        "Mike.Brown",
+                        "John.Smith",
+                        "Morning Training",
+                        LocalDate.of(2026, 5, 10),
+                        60
+                );
 
         assertEquals(1L, createdTraining.getId());
+
         assertEquals(
                 "Morning Training",
                 createdTraining.getTrainingName()
         );
+
         assertEquals(
                 LocalDate.of(2026, 5, 10),
                 createdTraining.getTrainingDate()
         );
+
         assertEquals(
                 60,
                 createdTraining.getTrainingDuration()
         );
-        assertSame(trainer, createdTraining.getTrainer());
-        assertSame(trainee, createdTraining.getTrainee());
-        assertSame(fitness, createdTraining.getTrainingType());
 
-        verify(passwordEncoder).matches(
-                "trainerPass",
-                "hashed-trainer-pass"
+        assertSame(
+                trainer,
+                createdTraining.getTrainer()
         );
+
+        assertSame(
+                trainee,
+                createdTraining.getTrainee()
+        );
+
+        assertSame(
+                fitness,
+                createdTraining.getTrainingType()
+        );
+
+        verify(trainerRepository)
+                .findByUserUsername("Mike.Brown");
+
+        verify(traineeRepository)
+                .findByUserUsername("John.Smith");
 
         verify(trainingRepository)
                 .save(any(Training.class));
     }
 
     @Test
-    void shouldThrowAuthenticationExceptionWhenTrainerPasswordIsWrong() {
-        TrainingType fitness = new TrainingType("Fitness");
+    void shouldThrowEntityNotFoundExceptionWhenTrainerDoesNotExist() {
+        when(trainerRepository.findByUserUsername(
+                "Missing.Trainer"
+        )).thenReturn(Optional.empty());
+
+        assertThrows(
+                EntityNotFoundException.class,
+                () -> trainingService.addTraining(
+                        "Missing.Trainer",
+                        "John.Smith",
+                        "Morning Training",
+                        LocalDate.of(2026, 5, 10),
+                        60
+                )
+        );
+
+        verify(traineeRepository, never())
+                .findByUserUsername(anyString());
+
+        verify(trainingRepository, never())
+                .save(any());
+    }
+
+    @Test
+    void shouldThrowEntityNotFoundExceptionWhenTraineeDoesNotExist() {
+        TrainingType fitness =
+                new TrainingType("Fitness");
 
         Trainer trainer = new Trainer(
                 new User(
                         "Mike",
                         "Brown",
                         "Mike.Brown",
-                        "hashed-trainer-pass",
+                        "hashed-password",
                         true
                 ),
                 fitness
         );
 
-        when(trainerRepository.findByUserUsername("Mike.Brown"))
-                .thenReturn(Optional.of(trainer));
+        when(trainerRepository.findByUserUsername(
+                "Mike.Brown"
+        )).thenReturn(Optional.of(trainer));
 
-        when(passwordEncoder.matches(
-                "wrongPass",
-                "hashed-trainer-pass"
-        )).thenReturn(false);
+        when(traineeRepository.findByUserUsername(
+                "Missing.Trainee"
+        )).thenReturn(Optional.empty());
 
         assertThrows(
-                AuthenticationException.class,
+                EntityNotFoundException.class,
                 () -> trainingService.addTraining(
                         "Mike.Brown",
-                        "wrongPass",
-                        "John.Smith",
+                        "Missing.Trainee",
                         "Morning Training",
                         LocalDate.of(2026, 5, 10),
                         60
@@ -165,9 +203,6 @@ class TrainingServiceTest {
 
         verify(trainingRepository, never())
                 .save(any());
-
-        verify(traineeRepository, never())
-                .findByUserUsername(any());
     }
 
     @Test
@@ -176,7 +211,6 @@ class TrainingServiceTest {
                 ValidationException.class,
                 () -> trainingService.addTraining(
                         "Mike.Brown",
-                        "trainerPass",
                         "John.Smith",
                         "Morning Training",
                         LocalDate.of(2026, 5, 10),
@@ -184,17 +218,20 @@ class TrainingServiceTest {
                 )
         );
 
-        verify(trainingRepository, never())
-                .save(any());
-
-        verify(passwordEncoder, never())
-                .matches(any(), any());
+        verifyNoInteractions(
+                trainerRepository,
+                traineeRepository,
+                trainingRepository
+        );
     }
 
     @Test
-    void shouldReturnTraineeTrainingsWithoutCheckingPassword() {
-        LocalDate fromDate = LocalDate.of(2026, 1, 1);
-        LocalDate toDate = LocalDate.of(2026, 12, 31);
+    void shouldReturnTraineeTrainingsWithFilters() {
+        LocalDate fromDate =
+                LocalDate.of(2026, 1, 1);
+
+        LocalDate toDate =
+                LocalDate.of(2026, 12, 31);
 
         Trainee trainee = new Trainee(
                 new User(
@@ -211,8 +248,9 @@ class TrainingServiceTest {
         List<Training> trainings =
                 List.of(new Training());
 
-        when(traineeRepository.findByUserUsername("John.Smith"))
-                .thenReturn(Optional.of(trainee));
+        when(traineeRepository.findByUserUsername(
+                "John.Smith"
+        )).thenReturn(Optional.of(trainee));
 
         when(trainingRepository.findTraineeTrainings(
                 "John.Smith",
@@ -236,23 +274,26 @@ class TrainingServiceTest {
         verify(traineeRepository)
                 .findByUserUsername("John.Smith");
 
-        verify(trainingRepository).findTraineeTrainings(
-                "John.Smith",
-                fromDate,
-                toDate,
-                "Mike.Brown",
-                "Fitness"
-        );
-
-        verifyNoInteractions(passwordEncoder);
+        verify(trainingRepository)
+                .findTraineeTrainings(
+                        "John.Smith",
+                        fromDate,
+                        toDate,
+                        "Mike.Brown",
+                        "Fitness"
+                );
     }
 
     @Test
     void shouldReturnTrainerTrainingsWithFilters() {
-        LocalDate fromDate = LocalDate.of(2026, 1, 1);
-        LocalDate toDate = LocalDate.of(2026, 12, 31);
+        LocalDate fromDate =
+                LocalDate.of(2026, 1, 1);
 
-        TrainingType fitness = new TrainingType("Fitness");
+        LocalDate toDate =
+                LocalDate.of(2026, 12, 31);
+
+        TrainingType fitness =
+                new TrainingType("Fitness");
 
         Trainer trainer = new Trainer(
                 new User(
@@ -268,13 +309,9 @@ class TrainingServiceTest {
         List<Training> trainings =
                 List.of(new Training());
 
-        when(trainerRepository.findByUserUsername("Mike.Brown"))
-                .thenReturn(Optional.of(trainer));
-
-        when(passwordEncoder.matches(
-                "trainerPass",
-                "hashed-trainer-pass"
-        )).thenReturn(true);
+        when(trainerRepository.findByUserUsername(
+                "Mike.Brown"
+        )).thenReturn(Optional.of(trainer));
 
         when(trainingRepository.findTrainerTrainings(
                 "Mike.Brown",
@@ -286,7 +323,6 @@ class TrainingServiceTest {
         List<Training> result =
                 trainingService.getTrainerTrainings(
                         "Mike.Brown",
-                        "trainerPass",
                         fromDate,
                         toDate,
                         "John.Smith"
@@ -294,10 +330,16 @@ class TrainingServiceTest {
 
         assertEquals(trainings, result);
 
-        verify(passwordEncoder).matches(
-                "trainerPass",
-                "hashed-trainer-pass"
-        );
+        verify(trainerRepository)
+                .findByUserUsername("Mike.Brown");
+
+        verify(trainingRepository)
+                .findTrainerTrainings(
+                        "Mike.Brown",
+                        fromDate,
+                        toDate,
+                        "John.Smith"
+                );
     }
 
     @Test
@@ -306,14 +348,15 @@ class TrainingServiceTest {
                 ValidationException.class,
                 () -> trainingService.getTrainerTrainings(
                         "Mike.Brown",
-                        "trainerPass",
                         LocalDate.of(2026, 12, 31),
                         LocalDate.of(2026, 1, 1),
                         "John.Smith"
                 )
         );
 
-        verify(passwordEncoder, never())
-                .matches(any(), any());
+        verifyNoInteractions(
+                trainerRepository,
+                trainingRepository
+        );
     }
 }
