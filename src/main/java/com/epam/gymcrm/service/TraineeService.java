@@ -194,7 +194,10 @@ public class TraineeService {
 
     @Transactional(readOnly = true)
     public List<Trainer> getTrainersNotAssignedToTrainee(String traineeUsername){
+        if(traineeRepository.findByUserUsername(traineeUsername).isPresent()){
         return trainerRepository.findTrainersNotAssignedToTrainee(traineeUsername);
+        }
+        throw new EntityNotFoundException("trainee", traineeUsername);
     }
 
     @Transactional

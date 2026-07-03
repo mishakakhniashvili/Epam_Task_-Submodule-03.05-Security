@@ -36,7 +36,7 @@ public class TrainingController {
             @ApiResponse(code = 401, message = "Invalid trainer credentials"),
             @ApiResponse(code = 404, message = "Trainer or trainee not found")
     })
-    @PostMapping
+    @PostMapping("/trainings")
     public ResponseEntity<Void> addTraining(
             Authentication authentication,
             @Valid @RequestBody AddTrainingRequest request
